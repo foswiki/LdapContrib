@@ -39,11 +39,12 @@ You can also disable automatic refreshing and refresh the <nop>LdapContrib's cac
 the "Refresh Cache" button below. Read the documentation of =MaxCacheAge= in the section
 "Performance Settings" in <a href="%SCRIPTURLPATH{"configure"}%">configure</a>.
 
-<center>%STARTINCLUDE%<form action="%SCRIPTURLPATH{"view"}%/%BASEWEB%/%BASETOPIC%">
+<center>
+<form action="%SCRIPTURLPATH{"view"}%/%BASEWEB%/%BASETOPIC%">
 <input type="hidden" name="refreshldap" value="on" />
 <input type="hidden" name="refresh" value="on" />
 <input type="submit" value="Refresh Cache" style="color:red" />
-</form>%STOPINCLUDE%
+</form>
 </center>
 
 Tip: You can add this button on any page by adding
@@ -88,13 +89,13 @@ To authenticate wiki users using your LDAP server
 you have to register the <nop>LdapPassword class as the so called
 <nop>PasswordManager.  This is done by adding the following lines in the
 =lib/LocalSite.cfg= configuration file (or by using the =configure= tool alternatively):
-<verbatim>$TWiki::cfg{PasswordManager} = 'TWiki::Users::LdapPassword';</verbatim>
+<verbatim>$Foswiki::cfg{PasswordManager} = 'Foswiki::Users::LdapPassword';</verbatim>
 
 There is a further option to fallback to the normal authentication mechanism
 by defining a secondary password manager. This allows you to create native wiki
 accounts, e.g. a <nop>WikiAdmin account and authenticate him without LDAP.
 Use the following setting to fallback to a htpasswd based authentication.
-<verbatim>$TWiki::cfg{Ldap}{SecondaryPasswordManager} = 'TWiki::Users::HtPasswdUser';</verbatim>
+<verbatim>$Foswiki::cfg{Ldap}{SecondaryPasswordManager} = 'Foswiki::Users::HtPasswdUser';</verbatim>
 So whenever authentication against LDAP fails, this second password manager will
 be used. 
 
@@ -102,7 +103,7 @@ be used.
 LDAP group records can be used in access control lists by registering a
 <nop>UserMappingManager implementation. This is done by adding the following 
 to your =lib/LocalSite.cfg= configuration file (or by using the =configure= tool alternatively):
-<verbatim>$TWiki::cfg{UserMappingManager} = 'TWiki::Users::LdapUserMapping';</verbatim>
+<verbatim>$Foswiki::cfg{UserMappingManager} = 'Foswiki::Users::LdapUserMapping';</verbatim>
 
 In addition you can decide if you want to _add_ the LDAP groups in additio or use
 LDAP groups solely. This is controled by the <nop>WikiGroupsBackoff flag.  If
@@ -155,8 +156,8 @@ a couple of extra operations are performed to generate a proper <nop>WikiName, i
 removing illegal characters.
 Given the setting
 <verbatim>
-$TWiki::cfg{Ldap}{WikiNameAttribute} = 'givenName,sn';
-$TWiki::cfg{Ldap}{NormalizeWikiNames} = 1;
+$Foswiki::cfg{Ldap}{WikiNameAttribute} = 'givenName,sn';
+$Foswiki::cfg{Ldap}{NormalizeWikiNames} = 1;
 </verbatim>
 The =givenName= and =sn= (surname) LDAP attributes will be fetched and concatenated
 to form a <nop>WikiName, so that "givenName=Hans-Peter,sn=Leuth�user-Schnarrenberg" will
@@ -165,16 +166,16 @@ If one of the <nop>WikiNameAttributes is 'mail' the =@mydomain.com= part will be
 all together.
 
 The login name can be normalized by enabling the
-<verbatim>$TWiki::cfg{Ldap}{NormalizeLoginNames} = 1;</verbatim>
+<verbatim>$Foswiki::cfg{Ldap}{NormalizeLoginNames} = 1;</verbatim>
 setting. However the normalized result will not be forced to be a cammel case <nop>WikiName.
 
 Similar to the <nop>WikiName of a user, group names can be normalized using
-<verbatim>$TWiki::cfg{Ldap}{NormalizeGroupNames} = 1;</verbatim>
+<verbatim>$Foswiki::cfg{Ldap}{NormalizeGroupNames} = 1;</verbatim>
 
 If a user in your LDAP directory changed his name, e.g. because of a mariage,
 this use can be mapped to his/her old account using an alias that points back
 from the old !WikiName to the new one. This is done using a setting like this:
-<verbatim>$TWiki::cfg{Ldap}{WikiNameAliases} = 'MaryMalone=MaryForrester, ...'</verbatim>
+<verbatim>$Foswiki::cfg{Ldap}{WikiNameAliases} = 'MaryMalone=MaryForrester, ...'</verbatim>
 The parameter takes a comma separated list of =FromWikiName=ToWikiName=. Whenever
 this account is still used in an access control list, its rights will be
 inheritted by the targeted =ToWikiName= account.
@@ -260,19 +261,19 @@ how to install [[http://www.openldap.org/][OpenLdap]].
 
 Use the following settings for the above example:
 <verbatim>
-$TWiki::cfg{Ldap}{Host} = 'ldap.my.domain.com';
-$TWiki::cfg{Ldap}{Port} = 389; 
-$TWiki::cfg{Ldap}{UserBase} = 'ou=people,dc=my,dc=domain,dc=com'; 
-$TWiki::cfg{Ldap}{LoginFilter} = 'objectClass=posixAccount';
-$TWiki::cfg{Ldap}{LoginAttribute} = 'uid';
-$TWiki::cfg{Ldap}{WikiNameAttribute} = 'cn';
-$TWiki::cfg{Ldap}{NormalizeWikiNames} = 1; 
-$TWiki::cfg{Ldap}{GroupBase} = 'ou=group,dc=my,dc=domain,dc=com';
-$TWiki::cfg{Ldap}{GroupFilter} = 'objectClass=posixGroup';
-$TWiki::cfg{Ldap}{GroupAttribute} = 'cn';
-$TWiki::cfg{Ldap}{MemberAttribute} = 'memberUid';
-$TWiki::cfg{Ldap}{MemberIndirection} = 0;
-$TWiki::cfg{Ldap}{MapGroups} = 1;
+$Foswiki::cfg{Ldap}{Host} = 'ldap.my.domain.com';
+$Foswiki::cfg{Ldap}{Port} = 389; 
+$Foswiki::cfg{Ldap}{UserBase} = 'ou=people,dc=my,dc=domain,dc=com'; 
+$Foswiki::cfg{Ldap}{LoginFilter} = 'objectClass=posixAccount';
+$Foswiki::cfg{Ldap}{LoginAttribute} = 'uid';
+$Foswiki::cfg{Ldap}{WikiNameAttribute} = 'cn';
+$Foswiki::cfg{Ldap}{NormalizeWikiNames} = 1; 
+$Foswiki::cfg{Ldap}{GroupBase} = 'ou=group,dc=my,dc=domain,dc=com';
+$Foswiki::cfg{Ldap}{GroupFilter} = 'objectClass=posixGroup';
+$Foswiki::cfg{Ldap}{GroupAttribute} = 'cn';
+$Foswiki::cfg{Ldap}{MemberAttribute} = 'memberUid';
+$Foswiki::cfg{Ldap}{MemberIndirection} = 0;
+$Foswiki::cfg{Ldap}{MapGroups} = 1;
 </verbatim>
 
 
@@ -295,7 +296,7 @@ that hits the site when this period expired.
 
 To remove this burden from the "first visitor in the morning", the automatic refresh procedure can
 be disabled by setting 
-<verbatim>$TWiki::cfg{Ldap}{MaxCacheAge} = 0; </verbatim>
+<verbatim>$Foswiki::cfg{Ldap}{MaxCacheAge} = 0; </verbatim>
 This means that the age of the cached data will not be checked _automatically_ anymore. The 
 responsibility that the data is updated is now up to you, that is you have to update the 
 cache _explicitly_. This can be done by either hitting the red "Refresh Cache" button above,
@@ -329,18 +330,18 @@ that the <nop>LdapContrib will force an update of the cache data.
 
 ---++ Contrib Info
 <!--
-   * Set SHORTDESCRIPTION = LDAP services for NextTwiki
+   * Set SHORTDESCRIPTION = LDAP services for Foswiki
 -->
 
 |  Author: | Michael Daum |
-|  Copyright &copy;: | 2006-2008 Michael Daum http://michaeldaumconsulting.com %BR% \
+|  Copyright &copy;: | 2006-2009 Michael Daum http://michaeldaumconsulting.com %BR% \
    This work was partly funded by [[http://www.spanlink.com][Spanlink Communications]] and \
    [[http://www.trivadis.com][Trivadis]] |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
-|  Version: | v2.99.7 |
+|  Version: | v2.99.10 |
 |  Change History: | |
 |  06 Oct 2008: | dropped support for TWiki < 4.2.3; \
-                  added support TLS encryption (by TWiki:Main/WolfgangKarall) | 
+                  added support TLS encryption (by Wolfgang Karall) | 
 |  12 Jun 2008: | added workarounds to use LDAP and <nop>MailInContrib on TWiki-4.2.0 |
 |  25 May 2008: | added alias feature, \
                   fixed normalization error, \

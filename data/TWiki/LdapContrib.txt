@@ -39,11 +39,12 @@ You can also disable automatic refreshing and refresh the <nop>LdapContrib's cac
 the "Refresh Cache" button below. Read the documentation of =MaxCacheAge= in the section
 "Performance Settings" in <a href="%SCRIPTURLPATH{"configure"}%">configure</a>.
 
-<center>%STARTINCLUDE%<form action="%SCRIPTURLPATH{"view"}%/%BASEWEB%/%BASETOPIC%">
+<center>
+<form action="%SCRIPTURLPATH{"view"}%/%BASEWEB%/%BASETOPIC%">
 <input type="hidden" name="refreshldap" value="on" />
 <input type="hidden" name="refresh" value="on" />
 <input type="submit" value="Refresh Cache" style="color:red" />
-</form>%STOPINCLUDE%
+</form>
 </center>
 
 Tip: You can add this button on any page by adding
