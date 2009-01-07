@@ -5,11 +5,11 @@ BEGIN {
   }
 }
 
-use TWiki::Contrib::Build;
+use Foswiki::Contrib::Build;
 
 package DBCacheBuild;
 
-@DBCacheBuild::ISA = ( "TWiki::Contrib::Build" );
+@DBCacheBuild::ISA = ( "Foswiki::Contrib::Build" );
 
 sub new {
   my $class = shift;

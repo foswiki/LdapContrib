@@ -1,4 +1,4 @@
-# Module of Foswiki - The Free and Open Source Wiki, http://foswiki.org/
+# Module of TWiki Enterprise Collaboration Platform, http://TWiki.org/
 #
 # Copyright (C) 2006-2008 Michael Daum http://michaeldaumconsulting.com
 # Portions Copyright (C) 2006 Spanlink Communications
@@ -18,11 +18,12 @@
 package TWiki::Users::LdapUserMapping;
 
 use strict;
-use TWiki::Users::TopicUserMapping;
+use TWiki::Users::TWikiUserMapping;
 use TWiki::Contrib::LdapContrib;
 use TWiki::Plugins;
 
-use base 'TWiki::Users::TopicUserMapping';
+use base 'TWiki::Users::TWikiUserMapping';
+
 use vars qw($isLoadedMapping);
 
 =pod
@@ -30,7 +31,7 @@ use vars qw($isLoadedMapping);
 ---+++ TWiki::Users::LdapUserMapping
 
 This class allows to use user names and groups stored in an LDAP
-database within the wiki in a transparent way. This replaces the
+database inside TWiki in a transparent way. This replaces TWiki's
 native way to represent users and groups using topics with
 according LDAP records.
 
@@ -74,6 +75,19 @@ sub finish {
 
 =pod
 
+---++++ writeDebug($msg) 
+
+Static method to write a debug messages. 
+
+=cut
+
+sub writeDebug {
+  print STDERR "- LdapUserMapping - $_[0]\n" if $TWiki::cfg{Ldap}{Debug};
+}
+
+
+=pod
+
 ---++++ addUser ($login, $wikiname, $password, $emails) -> $cUID
 
 overrides and thus disables the SUPER method
@@ -84,7 +98,7 @@ sub addUser {
   my $this = shift;
 
   return $this->SUPER::addUser(@_)
-    if $this->{ldap}{WikiGroupsBackoff};
+    if $this->{ldap}{nativeGroupsBackoff};
 
   return '';
 }
@@ -127,7 +141,7 @@ Maps a canonical user name to a wikiname
 sub getWikiName {
   my ($this, $cUID) = @_;
 
-  $this->{ldap}->writeDebug("called LdapUserMapping::getWikiName($cUID)");
+  writeDebug("called LdapUserMapping::getWikiName($cUID)");
     
   my $loginName = $this->getLoginName($cUID);
 
@@ -143,21 +157,34 @@ sub getWikiName {
   unless ($wikiName) {
 
     # fallback
-    $this->{ldap}->writeDebug("asking SUPER");
+    writeDebug("asking SUPER");
     $wikiName = $this->SUPER::getWikiName($cUID);
 
-  # backoff if it does not know
-  if (!defined($isGroup) && $this->{ldap}{WikiGroupsBackoff}) {
-    $isGroup = $this->SUPER::isGroup($user) if ref $user;
-    $isGroup = ($wikiName =~ /Group$/); # SMELL: api overdesign
   }
 
   # fallback fallback
   $wikiName ||= $loginName;
 
 
-  $this->{ldap}->writeDebug("returning $wikiName");
+  writeDebug("returning $wikiName");
   return $wikiName; 
+}
+
+=pod 
+
+---++++ getEmails($cUID) -> @emails
+
+emails might be stored in the ldap account as well if
+the record is of type possixAccount and inetOrgPerson.
+if this is not the case we fallback to the default behavior
+
+=cut
+
+sub getEmails {
+  my ($this, $cUID) = @_;
+
+  my $login = $this->getLoginName($cUID);
+  return $this->{passwords}->getEmails($login);
 }
 
 
@@ -177,7 +204,7 @@ sub userExists {
 
   return 1 if $wikiName;
 
-  if ($this->{ldap}{WikiGroupsBackoff}) {
+  if ($this->{ldap}{nativeGroupsBackoff}) {
     return $this->SUPER::userExists($cUID);
   }
 
@@ -197,13 +224,19 @@ sub eachUser {
 
   require TWiki::ListIterator;
 
-  my @allLoginNames = $this->{ldap}->getAllLoginNames();
-  my $ldapIter = new TWiki::ListIterator(@allLoginNames);
+  my @allCUIDs = ();
 
-  return $ldapIter unless $this->{ldap}{WikiGroupsBackoff};
+  foreach my $login (@{$this->{ldap}->getAllLoginNames()}) {
+    my $cUID = $this->login2cUID($login, 1);
+    push @allCUIDs, $cUID;
+  }
+
+  my $ldapIter = new TWiki::ListIterator(\@allCUIDs);
+  return $ldapIter unless $this->{ldap}{nativeGroupsBackoff};
 
   my $backOffIter = $this->SUPER::eachUser(@_);
   my @list = ($ldapIter, $backOffIter);
+
 
   return new TWiki::AggregateIterator(\@list, 1);
 }
@@ -231,7 +264,7 @@ sub eachGroup {
 ---++++ getListOfGroups( ) -> @listOfUserObjects
 
 Get a list of groups defined in the LDAP database. If 
-=wikiGroupsBackoff= is defined the set of LDAP and native groups will
+=nativeGroupsBackoff= is defined the set of LDAP and native groups will
 merged whereas LDAP groups have precedence in case of a name clash.
 
 =cut
@@ -239,15 +272,15 @@ merged whereas LDAP groups have precedence in case of a name clash.
 sub getListOfGroups {
   my $this = shift;
 
-  #$this->{ldap}->writeDebug("called getListOfGroups()");
+  writeDebug("called getListOfGroups()");
 
   my %groups;
   
 
-  return $this->SUPER::_getListOfGroups()
+  return @{$this->SUPER::_getListOfGroups()}
     unless $this->{ldap}{mapGroups};
 
-  if ($this->{ldap}{wikiGroupsBackoff}) {
+  if ($this->{ldap}{nativeGroupsBackoff}) {
     %groups = map { $_ => 1 } @{$this->SUPER::_getListOfGroups()};
   } else {
     %groups = ();
@@ -258,7 +291,7 @@ sub getListOfGroups {
       $groups{$groupName} = 1;
     }
   }
-  #$this->{ldap}->writeDebug("got " . (scalar keys %groups) . " overall groups=".join(',',keys %groups));
+  writeDebug("got " . (scalar keys %groups) . " overall groups=".join(',',keys %groups));
   return keys %groups;
 }
 
@@ -274,24 +307,30 @@ returns a list iterator for all groups members
 sub eachGroupMember {
   my ($this, $groupName) = @_;
 
-  $this->{ldap}->writeDebug("called eachGroupMember($groupName)");
+  writeDebug("called eachGroupMember($groupName)");
   return $this->SUPER::eachGroupMember($groupName) 
     unless $this->{ldap}{mapGroups};
 
   my $members = $this->{ldap}->getGroupMembers($groupName) || [];
+  my @cUIDs = ();
 
   unless (@$members) {
-    # fallback to wiki groups,
+    # fallback to native groups,
     # try also to find the SuperAdminGroup
-    if ($this->{ldap}{WikiGroupsBackoff} 
+    if ($this->{ldap}{nativeGroupsBackoff} 
       || $groupName eq $TWiki::cfg{SuperAdminGroup}) {
       return $this->SUPER::eachGroupMember($groupName);
+    }
+  } else {
+    foreach my $login (@$members) {
+      my $cUID = $this->login2cUID($login);
+      push @cUIDs, $cUID;
     }
   }
 
   require TWiki::ListIterator;
 
-  return new TWiki::ListIterator($members);
+  return new TWiki::ListIterator(\@cUIDs);
 }
 
 =pod
@@ -323,7 +362,7 @@ sub eachMembership {
 
 Establish if a user object refers to a user group or not.
 This returns true for the <nop>SuperAdminGroup or
-the known LDAP groups. Finally, if =wikiGroupsBackoff= 
+the known LDAP groups. Finally, if =nativeGroupsBackoff= 
 is set the native mechanism are used to check if $user is 
 a group
 
@@ -332,7 +371,8 @@ a group
 sub isGroup {
   my ($this, $user) = @_;
 
-  $this->{ldap}->writeDebug("called isGroup($user)");
+  return 0 unless $user;
+  writeDebug("called isGroup($user)");
 
   # may be called using a user object or a wikiName of a user
   my $wikiName = (ref $user)?$user->wikiName:$user;
@@ -348,7 +388,7 @@ sub isGroup {
   }
 
   # backoff if it does not know
-  if (!defined($isGroup) && $this->{ldap}{wikiGroupsBackoff}) {
+  if (!defined($isGroup) && $this->{ldap}{nativeGroupsBackoff}) {
     $isGroup = $this->SUPER::isGroup($user) if ref $user;
     $isGroup = ($wikiName =~ /Group$/); 
   }
@@ -372,7 +412,7 @@ sub findUserByEmail {
   return $this->{ldap}->getLoginOfEmail($email);
 }
 
-=pod 
+=pod
 
 ---++++ findUserByWikiName ($wikiName) -> list of cUIDs associated with that wikiname
 

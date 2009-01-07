@@ -1,3 +1,5 @@
+# Module of Foswiki - The Free and Open Source Wiki, http://foswiki.org/
+#
 # Copyright (C) 2006-2008 Michael Daum http://michaeldaumconsulting.com
 # Portions Copyright (C) 2006 Spanlink Communications
 #
@@ -79,6 +81,19 @@ sub error {
   return return $this->{error};
 }
 
+=pod
+
+---++++ writeDebug($msg) 
+
+Static method to write a debug messages. 
+
+=cut
+
+sub writeDebug {
+  print STDERR "- LdapPassword - $_[0]\n" if $TWiki::cfg{Ldap}{Debug};
+}
+
+
 =pod 
 
 ---++++ fetchPass($login) -> $passwd
@@ -98,7 +113,7 @@ sub fetchPass {
     return undef;
   }
 
-  $this->{ldap}->writeDebug("called fetchPass($login)");
+  writeDebug("called fetchPass($login)");
 
   my $passwd = $this->{passwords}{$login};
 
@@ -148,14 +163,14 @@ check passwd by binding to the ldap server
 sub checkPassword {
   my ($this, $login, $passU) = @_;
 
-  $this->{ldap}->writeDebug("called checkPassword($login, passU)");
+  writeDebug("called checkPassword($login, passU)");
 
   # guest has no password
   return 1 if $login eq $TWiki::cfg{DefaultUserWikiName};
 
   # get user record
   my $dn = $this->{ldap}->getDnOfLogin($login);
-  $this->{ldap}->writeDebug("dn not found") unless $dn;
+  writeDebug("dn not found") unless $dn;
 
   return $this->{ldap}->connect($dn, $passU)
     if $dn;
@@ -355,7 +370,7 @@ sub setPassword {
 ---++++ setEmails($user, @emails)
 
 Set the email address(es) for the given username.
-TWiki can't set the email stored in LDAP. But may be the secondary
+The engine can't set the email stored in LDAP. But may be the secondary
 password manager can.
 
 =cut

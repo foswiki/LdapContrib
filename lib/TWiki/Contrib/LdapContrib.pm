@@ -29,7 +29,7 @@ use TWiki::Func;
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev$';
-$RELEASE = 'v2.99.7';
+$RELEASE = 'v2.99.10';
 
 =pod
 
@@ -76,23 +76,14 @@ keys are used:
 
 =pod
 
----+++ writeDebug($msg, $level) 
+---+++ writeDebug($msg) 
 
-Method to write a debug messages. The $msg is only
-written if the given current debug level is high enough
-($level <= $TWiki::cfg{Ldap}{Debug}). The higher the 
-debug level, the more verbose the debug output.
-
-Debug output is written to STDERR.
+Static Method to write a debug messages. 
 
 =cut
 
 sub writeDebug {
-  my ($this, $msg, $level) = @_;
-
-  $level ||= 1;
-
-  print STDERR "- LdapContrib - $msg\n" if $level <= $this->{debug};
+  print STDERR "- LdapContrib - $_[0]\n" if $TWiki::cfg{Ldap}{Debug};
 }
 
 
@@ -150,7 +141,6 @@ sub new {
   my $this = {
     ldap=>undef,# connect later
     error=>undef,
-    debug=>$TWiki::cfg{Ldap}{Debug} || 0,
     host=>$TWiki::cfg{Ldap}{Host} || 'localhost',
     base=>$TWiki::cfg{Ldap}{Base} || '',
     port=>$TWiki::cfg{Ldap}{Port} || 389,
@@ -181,11 +171,11 @@ sub new {
     loginFilter=>$TWiki::cfg{Ldap}{LoginFilter} || 'objectClass=posixAccount',
 
     groupAttribute=>$TWiki::cfg{Ldap}{GroupAttribute} || 'cn',
-    primaryGroupAttribute=>$TWiki::cfg{Ldap}{PrimaryGroupAttribute} || '',
+    primaryGroupAttribute=>$TWiki::cfg{Ldap}{PrimaryGroupAttribute} || 'gidNumber',
     groupFilter=>$TWiki::cfg{Ldap}{GroupFilter} || 'objectClass=posixGroup',
     memberAttribute=>$TWiki::cfg{Ldap}{MemberAttribute} || 'memberUid',
     memberIndirection=>$TWiki::cfg{Ldap}{MemberIndirection} || 0,
-    wikiGroupsBackoff=>$TWiki::cfg{Ldap}{WikiGroupsBackoff} || 0,
+    nativeGroupsBackoff=>$TWiki::cfg{Ldap}{TWikiGroupsBackoff} || 0,
     bindDN=>$TWiki::cfg{Ldap}{BindDN} || '',
     bindPassword=>$TWiki::cfg{Ldap}{BindPassword} || '',
     mapGroups=>$TWiki::cfg{Ldap}{MapGroups} || 0,
@@ -193,7 +183,7 @@ sub new {
     mailAttribute=>$TWiki::cfg{Ldap}{MailAttribute} || 'mail',
 
     exclude=>$TWiki::cfg{Ldap}{Exclude} || 
-      'WikiGuest, TWikiContributor, ProjectContributor, RegistrationAgent, AdminGroup, NobodyGroup',
+      'TWikiGuest, TWikiContributor, TWikiRegistrationAgent, TWikiAdminGroup, NobodyGroup',
 
     pageSize=>$TWiki::cfg{Ldap}{PageSize} || 200,
     isConnected=>0,
@@ -218,7 +208,7 @@ sub new {
   $this->{session} = $session;
 
   if ($this->{useSASL}) {
-    #$this->writeDebug("will use SASL authentication");
+    #writeDebug("will use SASL authentication");
     require Authen::SASL;
   }
 
@@ -264,7 +254,7 @@ sub new {
   # default value for cache expiration is every 24h
   $this->{maxCacheAge} = 86400 unless defined $this->{maxCacheAge};
 
-  $this->writeDebug("constructed a new LdapContrib object");
+  writeDebug("constructed a new LdapContrib object");
 
   return $this;
 }
@@ -304,9 +294,9 @@ by calling this method. The methods below will do that automatically when needed
 sub connect {
   my ($this, $dn, $passwd) = @_;
 
-  $this->writeDebug("called connect");
-  #$this->writeDebug("dn=$dn", 2) if $dn;
-  #$this->writeDebug("passwd=***", 2) if $passwd;
+  writeDebug("called connect");
+  #writeDebug("dn=$dn", 2) if $dn;
+  #writeDebug("passwd=***", 2) if $passwd;
 
   $this->{ldap} = Net::LDAP->new($this->{host},
     port=>$this->{port},
@@ -320,7 +310,7 @@ sub connect {
 
   # TLS bind
   if ($this->{useTLS}) {
-    $this->writeDebug("using TLS");
+    writeDebug("using TLS");
     my %args = (
       verify => $this->{tlsVerify},
       cafile => $this->{tlsCAFile},
@@ -337,7 +327,7 @@ sub connect {
   if (defined($dn)) {
     die "illegal call to connect()" unless defined($passwd);
     $msg = $this->{ldap}->bind($dn, password=>$passwd);
-    $this->writeDebug("bind for $dn");
+    writeDebug("bind for $dn");
   } 
 
   # proxy user 
@@ -352,23 +342,23 @@ sub connect {
 	  pass => $this->{bindPassword},
 	},
       );
-      $this->writeDebug("sasl bind to $this->{bindDN}");
+      writeDebug("sasl bind to $this->{bindDN}");
       $msg = $this->{ldap}->bind($this->{bindDN}, sasl=>$sasl, version=>$this->{version} );
     } else {
       # simple bind
-      $this->writeDebug("proxy bind");
+      writeDebug("proxy bind");
       $msg = $this->{ldap}->bind($this->{bindDN},password=>$this->{bindPassword});
     }
   }
   
   # anonymous bind
   else {
-    #$this->writeDebug("anonymous bind");
+    #writeDebug("anonymous bind");
     $msg = $this->{ldap}->bind;
   }
 
   $this->{isConnected} = ($this->checkError($msg) == LDAP_SUCCESS)?1:0;
-  $this->writeDebug("failed to bind") unless $this->{isConnected};
+  writeDebug("failed to bind") unless $this->{isConnected};
   return $this->{isConnected};
 }
 
@@ -386,7 +376,7 @@ sub disconnect {
 
   return unless defined($this->{ldap}) && $this->{isConnected};
 
-  $this->writeDebug("called disconnect()");
+  writeDebug("called disconnect()");
   $this->{ldap}->unbind();
   $this->{ldap} = undef;
   $this->{isConnected} = 0;
@@ -406,7 +396,7 @@ sub finish {
   return if $this->{isFinished};
   $this->{isFinished} = 1;
 
-  $this->writeDebug("finishing");
+  writeDebug("finishing");
   $this->disconnect();
   delete $sharedLdapContrib{$this->{session}};
   undef $this->{cacheDB};
@@ -433,7 +423,7 @@ sub checkError {
     $this->{error} = undef;
   } else {
     $this->{error} = $code.': '.$msg->error();
-    $this->writeDebug($this->{error});
+    writeDebug($this->{error});
   } 
  
   return $code;
@@ -469,7 +459,7 @@ sub getAccount {
   my ($this, $login) = @_;
 
   $login = lc($login);
-  $this->writeDebug("called getAccount($login)");
+  writeDebug("called getAccount($login)");
   return undef if $this->{excludeMap}{$login};
 
   my $filter = '(&('.$this->{loginFilter}.')('.$this->{loginAttribute}.'='.$login.'))';
@@ -478,12 +468,12 @@ sub getAccount {
     base=>$this->{userBase}
   );
   unless ($msg) {
-    #$this->writeDebug("no such account");
+    #writeDebug("no such account");
     return undef;
   }
   if ($msg->count() != 1) {
     $this->{error} = 'Login invalid';
-    #$this->writeDebug($this->{error});
+    #writeDebug($this->{error});
     return undef;
   }
 
@@ -525,12 +515,12 @@ sub search {
 
   if ($this->{debug}) {
     my $attrString = join(',', @{$args{attrs}});
-    $this->writeDebug("called search(filter=$args{filter}, base=$args{base}, scope=$args{scope}, limit=$args{limit}, attrs=$attrString)");
+    writeDebug("called search(filter=$args{filter}, base=$args{base}, scope=$args{scope}, limit=$args{limit}, attrs=$attrString)");
   }
 
   unless ($this->{ldap}) {
     unless ($this->connect()) {
-      $this->writeDebug("error in search: ".$this->getError());
+      writeDebug("error in search: ".$this->getError());
       return undef;
     }
   }
@@ -540,15 +530,15 @@ sub search {
 
   # we set a limit so it is ok that it exceeds
   if ($args{limit} && $errorCode == LDAP_SIZELIMIT_EXCEEDED) {
-    $this->writeDebug("limit exceeded");
+    writeDebug("limit exceeded");
     return $msg;
   }
   
   if ($errorCode != LDAP_SUCCESS) {
-    #$this->writeDebug("error in search: ".$this->getError());
+    #writeDebug("error in search: ".$this->getError());
     return undef;
   }
-  $this->writeDebug("found ".$msg->count." entries");
+  writeDebug("found ".$msg->count." entries");
 
   return $msg;
 }
@@ -577,7 +567,7 @@ my $blobUrlPath = $ldap->cacheBlob($entry, $attr);
 sub cacheBlob {
   my ($this, $entry, $attr, $refresh) = @_;
 
-  #$this->writeDebug("called cacheBlob()");
+  #writeDebug("called cacheBlob()");
 
   my $systemWeb = &TWiki::Func::getTwikiWebname();
   my $dir = &TWiki::Func::getPubDir().'/'.$systemWeb.'/LdapContrib';
@@ -585,7 +575,7 @@ sub cacheBlob {
   my $fileName = $dir.'/'.$key;
 
   if ($refresh || !-f $fileName) {
-    #$this->writeDebug("caching blob");
+    #writeDebug("caching blob");
     my $value = $entry->get_value($attr);
     return undef unless defined $value;
     mkdir($dir, 0775) unless -e $dir;
@@ -595,10 +585,10 @@ sub cacheBlob {
     print FILE $value;
     close (FILE);
   } else {
-    #$this->writeDebug("already got blob");
+    #writeDebug("already got blob");
   }
   
-  #$this->writeDebug("done cacheBlob()");
+  #writeDebug("done cacheBlob()");
   return &TWiki::Func::getPubUrlPath().'/'.$systemWeb.'/LdapContrib/'.$key;
 }
 
@@ -616,10 +606,10 @@ sub initCache {
   return unless $TWiki::cfg{UserMappingManager} =~ /LdapUserMapping/ ||
                 $TWiki::cfg{PasswordManager} =~ /LdapPassword/;
 
-  #$this->writeDebug("called initCache");
+  #writeDebug("called initCache");
 
   # open database
-  #$this->writeDebug("opening ldap cache from $this->{cacheFile}");
+  #writeDebug("opening ldap cache from $this->{cacheFile}");
   $this->{cacheDB} = 
     tie %{$this->{data}}, 'DB_File', $this->{cacheFile}, O_CREAT|O_RDWR, 0664, $DB_HASH
     or die "Cannot open file $this->{cacheFile}: $!";
@@ -627,7 +617,7 @@ sub initCache {
   # refresh by user interaction
   my $refresh = CGI::param('refreshldap') || '';
   $refresh = $refresh eq 'on'?1:0;
-  #$this->writeDebug("refreshing cache explicitly") if $refresh;
+  #writeDebug("refreshing cache explicitly") if $refresh;
 
   if ($this->{maxCacheAge} > 0) { # is cache expiration enabled
 
@@ -640,17 +630,17 @@ sub initCache {
     # don't refresh within 60 seconds
     if ($cacheAge < 10) {
       $refresh = 0;
-      $this->writeDebug("suppressing cache refresh within 10 seconds");
+      writeDebug("suppressing cache refresh within 10 seconds");
     } else {
       $refresh = 1 if $cacheAge > $this->{maxCacheAge}
     }
 
-    #$this->writeDebug("cacheAge=$cacheAge, maxCacheAge=$this->{maxCacheAge}, lastUpdate=$lastUpdate, refresh=$refresh");
+    #writeDebug("cacheAge=$cacheAge, maxCacheAge=$this->{maxCacheAge}, lastUpdate=$lastUpdate, refresh=$refresh");
   }
 
   # clear to reload it
   if ($refresh) {
-    $this->writeDebug("updating cache");
+    writeDebug("updating cache");
     $this->refreshCache();
   }
 }
@@ -667,7 +657,7 @@ store it into a database
 sub refreshCache {
   my ($this) = @_;
 
-  $this->writeDebug("called refreshCache");
+  writeDebug("called refreshCache");
 
   # create a temporary tie
   my $tempCacheFile = $this->{cacheFile}.'_tmp';
@@ -688,7 +678,7 @@ sub refreshCache {
     return 0;
   }
 
-  $this->writeDebug("flushing db to disk");
+  writeDebug("flushing db to disk");
   $tempData{lastUpdate} = time();
   $tempCache->sync();
   undef $tempCache;
@@ -698,7 +688,7 @@ sub refreshCache {
   undef $this->{cacheDB};
   untie %{$this->{data}};
 
-  $this->writeDebug("replacing working copy");
+  writeDebug("replacing working copy");
   rename $tempCacheFile,$this->{cacheFile};
 
   # reconnect hash
@@ -723,7 +713,7 @@ returns true if new records have been loaded
 sub refreshUsersCache {
   my ($this, $data) = @_;
 
-  $this->writeDebug("called refreshUsersCache()");
+  writeDebug("called refreshUsersCache()");
   $data ||= $this->{data};
 
   # prepare search
@@ -750,7 +740,7 @@ sub refreshUsersCache {
     # perform search
     my $mesg = $this->search(@args);
     unless ($mesg) {
-      #$this->writeDebug("oops, no result");
+      #writeDebug("oops, no result");
       $this->writeWarning("error refeshing the user cashe: ".
         $this->getError());
       $gotError = 1;
@@ -770,11 +760,11 @@ sub refreshUsersCache {
       $page->cookie($cookie);
     } else {
       # found all
-      $this->writeDebug("ok, no more cookie");
+      writeDebug("ok, no more cookie");
       last;
     }
   } # end reading pages
-  $this->writeDebug("done reading pages");
+  writeDebug("done reading pages");
 
   # clean up
   if ($cookie) {
@@ -790,7 +780,7 @@ sub refreshUsersCache {
   $data->{WIKINAMES} = join(',', keys %wikiNames);
   $data->{LOGINNAMES} = join(',', keys %loginNames);
 
-  $this->writeDebug("got $nrRecords keys in cache");
+  writeDebug("got $nrRecords keys in cache");
 
   return 1;
 }
@@ -833,7 +823,7 @@ sub refreshGroupsCache {
     # perform search
     my $mesg = $this->search(@args);
     unless ($mesg) {
-      #$this->writeDebug("oops, no result");
+      #writeDebug("oops, no result");
       $this->writeWarning("error refeshing the groups cashe: ".
         $this->getError());
       last;
@@ -851,7 +841,7 @@ sub refreshGroupsCache {
       $page->cookie($cookie);
     } else {
       # found all
-      #$this->writeDebug("ok, no more cookie");
+      #writeDebug("ok, no more cookie");
       last;
     }
   } # end reading pages
@@ -870,7 +860,7 @@ sub refreshGroupsCache {
   foreach my $groupId (keys %{$this->{_primaryGroup}}) {
     my $groupName = $this->{_groupId}{$groupId};
     foreach my $member (keys %{$this->{_primaryGroup}{$groupId}}) {
-      $this->writeDebug("adding $member to its primary group $groupName");
+      writeDebug("adding $member to its primary group $groupName");
       $this->{_groups}{$groupName}{$member} = 1;
     }
   }
@@ -884,12 +874,12 @@ sub refreshGroupsCache {
       # groups may store DNs to members instead of a memberUid, in this case we
       # have to lookup the corresponding loginAttribute
       if ($this->{memberIndirection}) {
-	#$this->writeDebug("following indirection for $member");
+	#writeDebug("following indirection for $member");
 	my $memberName = $data->{"DN2U::$member"};
 	if ($memberName) {
 	  $members{$memberName} = 1;
 	} else {
-	  $this->writeDebug("oops, $member not found, but member of $groupName");
+	  writeDebug("oops, $member not found, but member of $groupName");
 	} 
       } else {
 	$members{$member} = 1;
@@ -904,7 +894,7 @@ sub refreshGroupsCache {
   # remember list of all groups
   $data->{GROUPS} = join(',', keys %groupNames);
 
-  #$this->writeDebug("got $nrRecords keys in cache");
+  #writeDebug("got $nrRecords keys in cache");
 
   return 1;
 }
@@ -922,7 +912,7 @@ returns true if new records have been created
 sub cacheUserFromEntry {
   my ($this, $entry, $data, $wikiNames, $loginNames) = @_;
 
-  #$this->writeDebug("called cacheUserFromEntry()");
+  #writeDebug("called cacheUserFromEntry()");
 
   $data ||= $this->{data};
   $wikiNames ||= {};
@@ -933,7 +923,7 @@ sub cacheUserFromEntry {
   $loginName =~ s/^\s+//o;
   $loginName =~ s/\s+$//o;
   unless ($loginName) {
-    $this->writeDebug("no loginName for $dn ... skipping");
+    writeDebug("no loginName for $dn ... skipping");
     return 0;
   }
 
@@ -956,7 +946,7 @@ sub cacheUserFromEntry {
     $value = from_utf8(-string=>$value, -charset=>$TWiki::cfg{Site}{CharSet})
       unless $TWiki::cfg{Site}{CharSet} =~ /^utf-?8$/i;
 
-    #$this->writeDebug("$attr=$value");
+    #writeDebug("$attr=$value");
 
     if ($this->{normalizeWikiName}) {
       $wikiName .= $this->normalizeWikiName($value);
@@ -988,11 +978,11 @@ sub cacheUserFromEntry {
   # get primary group 
   if ($this->{primaryGroupAttribute}) {
     my $groupId = $entry->get_value($this->{primaryGroupAttribute});
-    $this->{_primaryGroup}{$groupId}{$loginName} = 1; # delayed
+    $this->{_primaryGroup}{$groupId}{$loginName} = 1 if $groupId; # delayed
   }
 
   # store it
-  $this->writeDebug("adding wikiName='$wikiName', loginName='$loginName', dn=$dn");
+  writeDebug("adding wikiName='$wikiName', loginName='$loginName', dn=$dn");
   $data->{"U2W::$loginName"} = $wikiName;
   $data->{"W2U::$wikiName"} = $loginName;
   $data->{"DN2U::$dn"} = $loginName;
@@ -1036,7 +1026,7 @@ sub cacheGroupFromEntry {
 
   my $groupName = $entry->get_value($this->{groupAttribute});
   unless ($groupName) {
-    $this->writeDebug("no groupName for $dn ... skipping");
+    writeDebug("no groupName for $dn ... skipping");
     return 0;
   }
   $groupName =~ s/^\s+//o;
@@ -1067,7 +1057,9 @@ sub cacheGroupFromEntry {
 
   # cache groupIds
   my $groupId = $entry->get_value($this->{primaryGroupAttribute});
-  $this->{_groupId}{$groupId} = $groupName;
+  if ($groupId) {
+    $this->{_groupId}{$groupId} = $groupName;
+  }
 
   # fetch all members of this group
   foreach my $member ($entry->get_value($this->{memberAttribute})) {
@@ -1078,7 +1070,7 @@ sub cacheGroupFromEntry {
   }
 
   # store it
-  $this->writeDebug("adding groupName='$groupName', dn=$dn");
+  writeDebug("adding groupName='$groupName', dn=$dn");
   $data->{"DN2U::$dn"} = $groupName;
   $data->{"U2DN::$groupName"} = $dn;
   $groupNames->{$groupName} = 1;
@@ -1104,13 +1096,13 @@ sub normalizeWikiName {
   # SMELL: you may have a different attribute name for the email address
   
   # replace umlaute
-  $name =~ s/ä/ae/go;
-  $name =~ s/ö/oe/go;
-  $name =~ s/ü/ue/go;
-  $name =~ s/Ä/Ae/go;
-  $name =~ s/Ö/Oe/go;
-  $name =~ s/Ü/Ue/go;
-  $name =~ s/ß/ss/go;
+  $name =~ s/Ã¤/ae/go;
+  $name =~ s/Ã¶/oe/go;
+  $name =~ s/Ã¼/ue/go;
+  $name =~ s/Ã„/Ae/go;
+  $name =~ s/Ã–/Oe/go;
+  $name =~ s/Ãœ/Ue/go;
+  $name =~ s/ÃŸ/ss/go;
 
   my $wikiName = '';
   foreach my $part (split(/[^$TWiki::regex{mixedAlphaNum}]/, $name)) {
@@ -1138,13 +1130,13 @@ sub normalizeLoginName {
   # SMELL: you may have a different attribute name for the email address
   
   # replace umlaute
-  $name =~ s/ä/ae/go;
-  $name =~ s/ö/oe/go;
-  $name =~ s/ü/ue/go;
-  $name =~ s/Ä/Ae/go;
-  $name =~ s/Ö/Oe/go;
-  $name =~ s/Ü/Ue/go;
-  $name =~ s/ß/ss/go;
+  $name =~ s/Ã¤/ae/go;
+  $name =~ s/Ã¶/oe/go;
+  $name =~ s/Ã¼/ue/go;
+  $name =~ s/Ã„/Ae/go;
+  $name =~ s/Ã–/Oe/go;
+  $name =~ s/Ãœ/Ue/go;
+  $name =~ s/ÃŸ/ss/go;
   $name =~ s/[^$TWiki::cfg{LoginNameFilterIn}]//;
 
   return $name;
@@ -1162,7 +1154,7 @@ Returns a list of known group names.
 sub getGroupNames {
   my $this = shift;
 
-  #$this->writeDebug("called getGroupNames()");
+  #writeDebug("called getGroupNames()");
 
   my $groupNames = TWiki::Sandbox::untaintUnchecked($this->{data}{GROUPS}) || '';
   my @groupNames = split(/\s*,\s*/,$groupNames);
@@ -1181,7 +1173,7 @@ check if a given user is an ldap group actually
 sub isGroup {
   my ($this, $wikiName) = @_;
 
-  #$this->writeDebug("called isGroup($wikiName)");
+  #writeDebug("called isGroup($wikiName)");
   return undef if $this->{excludeMap}{$wikiName};
   return 1 if defined($this->{data}{"GROUPS::$wikiName"});
   return undef;
@@ -1231,7 +1223,7 @@ sub getGroupMembers {
   my ($this, $groupName) = @_;
   return undef if $this->{excludeMap}{$groupName};
 
-  $this->writeDebug("called getGroupMembers $groupName");
+  writeDebug("called getGroupMembers $groupName");
 
   my $members = TWiki::Sandbox::untaintUnchecked($this->{data}{"GROUPS::$groupName"}) || '';
   my @members = split(/\s*,\s*/, $members);
@@ -1265,7 +1257,7 @@ returns the wikiName of a loginName or undef if it does not exist
 sub getWikiNameOfLogin {
   my ($this, $loginName) = @_;
 
-  $this->writeDebug("called getWikiNameOfLogin($loginName)");
+  writeDebug("called getWikiNameOfLogin($loginName)");
   $loginName = lc($loginName);
   return TWiki::Sandbox::untaintUnchecked($this->{data}{"U2W::$loginName"});
 }
@@ -1362,7 +1354,7 @@ sub changePassword {
   my $errorCode = $this->checkError($msg);
 
   if ($errorCode != LDAP_SUCCESS) {
-    $this->writeDebug("error in changePassword: ".$this->getError());
+    writeDebug("error in changePassword: ".$this->getError());
     return undef;
   }
 
@@ -1386,17 +1378,17 @@ interval (default every 24h). See the LdapContrib settings.
 sub checkCacheForLoginName {
   my ($this, $loginName) = @_;
 
-  $this->writeDebug("called checkCacheForLoginName($loginName)");
+  writeDebug("called checkCacheForLoginName($loginName)");
 
   my $wikiName = $this->getWikiNameOfLogin($loginName);
 
   return 1 if $wikiName;
 
   # update cache selectively
-  $this->writeDebug("warning, $loginName is unknown, need to refresh part of the ldap cache");
+  writeDebug("warning, $loginName is unknown, need to refresh part of the ldap cache");
   my $entry = $this->getAccount($loginName);
   unless ($entry) {
-    $this->writeDebug("oops, no result");
+    writeDebug("oops, no result");
   } else {
     # merge this user record
 

@@ -180,7 +180,7 @@ $TWiki::cfg{Ldap}{MemberIndirection} = 0;
 # Flag indicating wether we fallback to WikiGroups. If this is switched on, 
 # standard Wiki groups will be used as a fallback if a group definition of a given
 # name was not found in the LDAP database.
-$TWiki::cfg{Ldap}{WikiGroupsBackoff} = 1;
+$TWiki::cfg{Ldap}{TWikiGroupsBackoff} = 1;
 
 # **BOOLEAN**
 # Enable/disable normalization of group names as they come from LDAP:
@@ -209,4 +209,4 @@ $TWiki::cfg{Ldap}{PageSize} = 500;
 
 # **STRING 50**
 # Prevent certain names from being looked up in LDAP
-$TWiki::cfg{Ldap}{Exclude} = 'WikiGuest, TWikiContributor, ProjectContributor, RegistrationAgent, AdminGroup, NobodyGroup';
+$TWiki::cfg{Ldap}{Exclude} = 'TWikiGuest, TWikiContributor, TWikiRegistrationAgent, TWikiAdminGroup, NobodyGroup';
