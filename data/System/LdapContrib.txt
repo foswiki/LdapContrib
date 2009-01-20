@@ -10,6 +10,7 @@
    Instead, you could check your fix in, raise a bug in the Bugs web, or mail the author.
 -->
 %TOC{title="On this page"}%
+---++ Introduction
 <table style="float:right">
 <tr>
   <td><img src="%ATTACHURLPATH%/wikiringlogo40x40.png"></td>
@@ -18,9 +19,8 @@
   </td>
 </tr>
 </table>
-<br clear="both" />
 
-This package offers basic LDAP services for <nop>NextTwiki and offers authentication of
+This package offers basic LDAP services for Foswiki and offers authentication of
 wiki users by binding to an LDAP server as well as incorporate LDAP user
 groups into access control. 
 
@@ -338,8 +338,9 @@ that the <nop>LdapContrib will force an update of the cache data.
    This work was partly funded by [[http://www.spanlink.com][Spanlink Communications]] and \
    [[http://www.trivadis.com][Trivadis]] |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
-|  Version: | v2.99.10 |
+|  Version: | v2.99.11 |
 |  Change History: | |
+|  20 Jan 2009: | fixed geting emails for groups and login names |
 |  06 Oct 2008: | dropped support for TWiki < 4.2.3; \
                   added support TLS encryption (by Wolfgang Karall) | 
 |  12 Jun 2008: | added workarounds to use LDAP and <nop>MailInContrib on TWiki-4.2.0 |

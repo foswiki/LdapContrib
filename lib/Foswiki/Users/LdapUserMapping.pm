@@ -1,6 +1,6 @@
 # Module of Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# Copyright (C) 2006-2008 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2006-2009 Michael Daum http://michaeldaumconsulting.com
 # Portions Copyright (C) 2006 Spanlink Communications
 #
 # This program is free software; you can redistribute it and/or
@@ -181,10 +181,32 @@ if this is not the case we fallback to the default behavior
 =cut
 
 sub getEmails {
-  my ($this, $cUID) = @_;
+  my ($this, $user, $seen) = @_;
 
-  my $login = $this->getLoginName($cUID);
-  return $this->{passwords}->getEmails($login);
+  my $login = $this->getLoginName($user);
+
+  $seen ||= {};
+  my %emails = ();
+
+  return keys %emails if $seen->{$user};
+
+  $seen->{$user} = 1;
+
+  if ($this->isGroup($user)) {
+    my $it = $this->eachGroupMember($user);
+    while ($it->hasNext()) {
+      foreach ($this->getEmails($it->next(), $seen)) {
+        $emails{$_} = 1;
+      }
+    }
+  } else {
+    # get emails from the password manager
+    foreach ($this->{passwords}->getEmails($this->getLoginName($user), $seen)) {
+      $emails{$_} = 1;
+    }
+  }
+
+  return keys %emails;
 }
 
 
@@ -427,8 +449,9 @@ sub findUserByWikiName {
   if ($this->isGroup($wikiName)) {
     push @users, $wikiName;
   } else {
-    my $loginName = $this->{ldap}->getLoginOfWikiName($wikiName);
-    push @users, $this->login2cUID($loginName, 1) if $loginName;
+    my $loginName = $this->{ldap}->getLoginOfWikiName($wikiName) || $wikiName;
+    my $cUID = $this->login2cUID($loginName, 1);
+    push @users, $cUID if $cUID;
   }
 
   return \@users;
