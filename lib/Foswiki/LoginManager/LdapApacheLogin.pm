@@ -18,6 +18,7 @@ use strict;
 use Assert;
 use Foswiki::LoginManager::ApacheLogin;
 use Foswiki::Contrib::LdapContrib;
+use Foswiki::Sandbox;
 
 @Foswiki::LoginManager::LdapApacheLogin::ISA = qw( Foswiki::LoginManager::ApacheLogin );
 
@@ -33,6 +34,10 @@ sub loadSession {
   my $this = shift;
 
   my $authUser = $this->SUPER::loadSession(@_);
+
+  # explicitly untaint it as this string comes from LDAP, and all strings
+  # from LDAP are tainted, even if they come via mod_ldap
+  $authUser = Foswiki::Sandbox::untaintUnchecked($authUser);
 
   # remove kerberos realm
   $authUser =~ s/\@.*$//g if defined $authUser;

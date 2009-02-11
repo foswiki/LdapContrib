@@ -338,8 +338,12 @@ that the <nop>LdapContrib will force an update of the cache data.
    This work was partly funded by [[http://www.spanlink.com][Spanlink Communications]] and \
    [[http://www.trivadis.com][Trivadis]] |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
-|  Version: | v2.99.11 |
+|  Version: | v2.99.12 |
 |  Change History: | |
+|  11 Feb 2009: | allow utf8 chars in passwords; \
+                  all strings from LDAP are tainted, even if it comes from mod_ldap via remote_user; \
+                  only use LDAP query as a last resort to check if a user exists; \
+                  prevent explicitly excluded login names to be added to the cache |
 |  20 Jan 2009: | fixed geting emails for groups and login names |
 |  19 Dec 2008: | fixed group mapping under <nop>MapGroup=off |
 |  05 Dec 2008: | fixed group mapping |

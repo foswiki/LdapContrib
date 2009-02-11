@@ -151,7 +151,7 @@ sub getWikiName {
 
   unless ($this->{ldap}{excludeMap}{$loginName}) {
     $wikiName = $this->{ldap}->getWikiNameOfLogin($loginName); 
-    $wikiName = undef if $wikiName eq '_unknown_';
+    $wikiName = undef if !$wikiName || $wikiName eq '_unknown_';
   }
 
   unless ($wikiName) {
@@ -298,7 +298,6 @@ sub getListOfGroups {
 
   my %groups;
   
-
   return @{$this->SUPER::_getListOfGroups()}
     unless $this->{ldap}{mapGroups};
 
@@ -340,7 +339,7 @@ sub eachGroupMember {
     # fallback to native groups,
     # try also to find the SuperAdminGroup
     if ($this->{ldap}{nativeGroupsBackoff} 
-      || $groupName eq $TWiki::cfg{SuperAdminGroup}) {
+      || $groupName eq $Foswiki::cfg{SuperAdminGroup}) {
       return $this->SUPER::eachGroupMember($groupName);
     }
   } else {
@@ -434,7 +433,7 @@ sub findUserByEmail {
   return $this->{ldap}->getLoginOfEmail($email);
 }
 
-=pod
+=pod 
 
 ---++++ findUserByWikiName ($wikiName) -> list of cUIDs associated with that wikiname
 
@@ -450,7 +449,6 @@ sub findUserByWikiName {
   if ($this->isGroup($wikiName)) {
     push @users, $wikiName;
   } else {
-    my $cUID;
     my $loginName = $this->{ldap}->getLoginOfWikiName($wikiName) || $wikiName;
     my $cUID = $this->login2cUID($loginName, 1);
     push @users, $cUID if $cUID;
@@ -475,9 +473,9 @@ first, then login, then wikiName.
 sub handlesUser {
   my ($this, $cUID, $login, $wikiName) = @_;
 
-  return 1 if defined $cUID && $this->userExists($cUID);
   return 1 if defined $login && $this->{ldap}->getWikiNameOfLogin($login);
   return 1 if defined $wikiName && $this->{ldap}->getLoginOfWikiName($wikiName);
+  return 1 if defined $cUID && $this->userExists($cUID);
 
   return 0;
 }

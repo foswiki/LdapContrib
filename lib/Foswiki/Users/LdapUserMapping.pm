@@ -151,7 +151,7 @@ sub getWikiName {
 
   unless ($this->{ldap}{excludeMap}{$loginName}) {
     $wikiName = $this->{ldap}->getWikiNameOfLogin($loginName); 
-    $wikiName = undef if $wikiName eq '_unknown_';
+    $wikiName = undef if !$wikiName || $wikiName eq '_unknown_';
   }
 
   unless ($wikiName) {
@@ -473,9 +473,9 @@ first, then login, then wikiName.
 sub handlesUser {
   my ($this, $cUID, $login, $wikiName) = @_;
 
-  return 1 if defined $cUID && $this->userExists($cUID);
   return 1 if defined $login && $this->{ldap}->getWikiNameOfLogin($login);
   return 1 if defined $wikiName && $this->{ldap}->getLoginOfWikiName($wikiName);
+  return 1 if defined $cUID && $this->userExists($cUID);
 
   return 0;
 }

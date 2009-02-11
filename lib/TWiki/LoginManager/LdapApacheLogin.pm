@@ -18,6 +18,7 @@ use strict;
 use Assert;
 use TWiki::LoginManager::ApacheLogin;
 use TWiki::Contrib::LdapContrib;
+use TWiki::Sandbox;
 
 @TWiki::LoginManager::LdapApacheLogin::ISA = qw( TWiki::LoginManager::ApacheLogin );
 
@@ -33,6 +34,10 @@ sub loadSession {
   my $this = shift;
 
   my $authUser = $this->SUPER::loadSession(@_);
+
+  # explicitly untaint it as this string comes from LDAP, and all strings
+  # from LDAP are tainted, even if they come via mod_ldap
+  $authUser = TWiki::Sandbox::untaintUnchecked($authUser);
 
   # remove kerberos realm
   $authUser =~ s/\@.*$//g if defined $authUser;

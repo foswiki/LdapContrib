@@ -29,7 +29,7 @@ use Foswiki::Func;
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev$';
-$RELEASE = 'v2.99.11';
+$RELEASE = 'v2.99.12';
 
 =pod
 
@@ -322,6 +322,11 @@ sub connect {
     $this->{ldap}->start_tls(%args);
   }
 
+  if ($passwd) {
+    $passwd = to_utf8(-string=>$passwd, -charset=>$Foswiki::cfg{Site}{CharSet})
+      unless $Foswiki::cfg{Site}{CharSet} =~ /^utf-?8$/i;
+  }
+
   # authenticated bind
   my $msg;
   if (defined($dn)) {
@@ -458,9 +463,10 @@ search using $ldap->{loginFilter} in the subtree defined by $ldap->{userBase}.
 sub getAccount {
   my ($this, $login) = @_;
 
-  $login = lc($login);
   writeDebug("called getAccount($login)");
   return undef if $this->{excludeMap}{$login};
+
+  $login = lc($login);
 
   my $filter = '(&('.$this->{loginFilter}.')('.$this->{loginAttribute}.'='.$login.'))';
   my $msg = $this->search(
@@ -934,6 +940,7 @@ sub cacheUserFromEntry {
   if ($this->{normalizeLoginName}) {
     $loginName = $this->normalizeLoginName($loginName);
   }
+  return 0 if $this->{excludeMap}{$loginName};
 
   # construct the wikiName
   my $wikiName;
@@ -965,6 +972,7 @@ sub cacheUserFromEntry {
   if (defined($wikiNames->{$wikiName})) {
     $this->writeWarning("$dn clashes with wikiName $wikiNames->{$wikiName} on $wikiName");
   }
+
   $wikiNames->{$wikiName} = $dn;
   if (defined($loginNames->{$loginName})) {
     $this->writeWarning("$dn clashes with loginName $loginNames->{$loginName} on $loginName");
@@ -1038,6 +1046,7 @@ sub cacheGroupFromEntry {
   if ($this->{normalizeGroupName}) {
     $groupName = $this->normalizeWikiName($groupName);
   }
+  return 0 if $this->{excludeMap}{$groupName};
 
   if (defined($groupNames->{$groupName})) {
     $this->writeWarning("$dn clashes with group $groupNames->{$groupName} on $groupName");
