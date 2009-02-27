@@ -15,29 +15,29 @@
 #
 # As per the GPL, removal of this notice is prohibited.
 
-package TWiki::Users::LdapPassword;
-use base 'TWiki::Users::Password';
+package Foswiki::Users::LdapPasswdUser;
+use base 'Foswiki::Users::Password';
 
 use strict;
 
-use TWiki::Contrib::LdapContrib;
-use TWiki::Plugins;
+use Foswiki::Contrib::LdapContrib;
+use Foswiki::Plugins;
 
 
 =pod
 
----+++ TWiki::Users::LdapPassword
+---+++ Foswiki::Users::LdapPassdUser
 
 Password manager that uses Net::LDAP to manage users and passwords.
 
-Subclass of =TWiki::Users::Password=.
+Subclass of =Foswiki::Users::Password=.
 
 This class does not grant any write access to the ldap server for security reasons. 
 So you need to use your ldap tools to create user accounts.
 
 Configuration: add the following variables to your <nop>LocalSite.cfg 
-   * $TWiki::cfg{Ldap}{server} = &lt;ldap-server uri>, defaults to localhost
-   * $TWiki::cfg{Ldap}{base} = &lt;base dn> subtree that holds the user accounts
+   * $Foswiki::cfg{Ldap}{server} = &lt;ldap-server uri>, defaults to localhost
+   * $Foswiki::cfg{Ldap}{base} = &lt;base dn> subtree that holds the user accounts
      e.g. ou=people,dc=your,dc=domain,dc=com
 
 =cut
@@ -47,7 +47,7 @@ Configuration: add the following variables to your <nop>LocalSite.cfg
 ---++++ new($session) -> $ldapUser
 
 Takes a session object, creates an LdapContrib object used to
-delegate LDAP calls and returns a new TWiki::User::LdapPassword object
+delegate LDAP calls and returns a new Foswiki::User::LdapPasswd object
 
 =cut
 
@@ -55,7 +55,7 @@ sub new {
   my ($class, $session) = @_;
 
   my $this = bless($class->SUPER::new( $session ), $class);
-  $this->{ldap} = &TWiki::Contrib::LdapContrib::getLdapContrib($session);
+  $this->{ldap} = &Foswiki::Contrib::LdapContrib::getLdapContrib($session);
 
   my $secondaryImpl = $this->{ldap}->{secondaryPasswordManager};
   if ($secondaryImpl) {
@@ -90,7 +90,7 @@ Static method to write a debug messages.
 =cut
 
 sub writeDebug {
-  print STDERR "- LdapPassword - $_[0]\n" if $TWiki::cfg{Ldap}{Debug};
+  print STDERR "- LdapPasswdUser - $_[0]\n" if $Foswiki::cfg{Ldap}{Debug};
 }
 
 
@@ -166,7 +166,7 @@ sub checkPassword {
   writeDebug("called checkPassword($login, passU)");
 
   # guest has no password
-  return 1 if $login eq $TWiki::cfg{DefaultUserWikiName};
+  return 1 if $login eq $Foswiki::cfg{DefaultUserWikiName};
 
   # get user record
   my $dn = $this->{ldap}->getDnOfLogin($login);
@@ -220,7 +220,7 @@ sub getEmails {
   my ($this, $login) = @_;
 
   # guest has no email addrs
-  return () if $login eq $TWiki::cfg{DefaultUserWikiName};
+  return () if $login eq $Foswiki::cfg{DefaultUserWikiName};
 
   # get emails from ldap
   my $emails = $this->{ldap}->getEmails($login);
@@ -429,9 +429,9 @@ sub canFetchUsers {
 
 =pod 
 
----++++ fetchUsers() -> new TWiki::ListIterator(\@users)
+---++++ fetchUsers() -> new Foswiki::ListIterator(\@users)
 
-returns a TWikiIterator of loginnames 
+returns a FoswikiIterator of loginnames 
 
 =cut
 
@@ -440,7 +440,7 @@ sub fetchUsers {
 
   my $users = $this->{ldap}->getAllLoginNames();
   print STDERR "fetchUsers=".join(',', @$users)."\n";
-  return new TWiki::ListIterator($users);
+  return new Foswiki::ListIterator($users);
 }
 
 

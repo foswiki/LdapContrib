@@ -3,7 +3,7 @@
 # <b>LdapNgPlugin</b>. 
 # <p>
 # To use an LDAP server for authentication you have to use the PasswordManager
-# <b>LdapPassword</b>.
+# <b>LdapPasswdUser</b>.
 # To Use groups defined in LDAP enable the UserMappingManager <b>LdapUserMapping</b>.
 # (see the Security Setting section)
 
@@ -130,7 +130,7 @@ $Foswiki::cfg{Ldap}{AllowChangePassword} = 0;
 
 # **SELECTCLASS none,Foswiki::Users::*User**
 # Define a secondary password manager used to authenticate users that are 
-# registered to the wiki natively. Note, that <b>this must not be Foswiki::Users::LdapPassword again!</b>
+# registered to the wiki natively. Note, that <b>this must not be Foswiki::Users::LdapPasswdUser again!</b>
 $Foswiki::cfg{Ldap}{SecondaryPasswordManager} = 'none';
 
 # **STRING**

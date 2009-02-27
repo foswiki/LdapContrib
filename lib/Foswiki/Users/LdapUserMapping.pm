@@ -157,7 +157,7 @@ sub getWikiName {
   unless ($wikiName) {
 
     # fallback
-    writeDebug("asking SUPER");
+    #writeDebug("asking SUPER");
     $wikiName = $this->SUPER::getWikiName($cUID);
 
   }
@@ -250,7 +250,7 @@ sub eachUser {
 
   foreach my $login (@{$this->{ldap}->getAllLoginNames()}) {
     my $cUID = $this->login2cUID($login, 1);
-    push @allCUIDs, $cUID;
+    push @allCUIDs, $cUID if $cUID;
   }
 
   my $ldapIter = new Foswiki::ListIterator(\@allCUIDs);
@@ -294,7 +294,7 @@ merged whereas LDAP groups have precedence in case of a name clash.
 sub getListOfGroups {
   my $this = shift;
 
-  writeDebug("called getListOfGroups()");
+  #writeDebug("called getListOfGroups()");
 
   my %groups;
   
@@ -312,7 +312,7 @@ sub getListOfGroups {
       $groups{$groupName} = 1;
     }
   }
-  writeDebug("got " . (scalar keys %groups) . " overall groups=".join(',',keys %groups));
+  #writeDebug("got " . (scalar keys %groups) . " overall groups=".join(',',keys %groups));
   return keys %groups;
 }
 
@@ -328,7 +328,7 @@ returns a list iterator for all groups members
 sub eachGroupMember {
   my ($this, $groupName) = @_;
 
-  writeDebug("called eachGroupMember($groupName)");
+  #writeDebug("called eachGroupMember($groupName)");
   return $this->SUPER::eachGroupMember($groupName) 
     unless $this->{ldap}{mapGroups};
 
@@ -345,12 +345,11 @@ sub eachGroupMember {
   } else {
     foreach my $login (@$members) {
       my $cUID = $this->login2cUID($login);
-      push @cUIDs, $cUID;
+      push @cUIDs, $cUID if $cUID;
     }
   }
 
   require Foswiki::ListIterator;
-
   return new Foswiki::ListIterator(\@cUIDs);
 }
 
@@ -393,7 +392,7 @@ sub isGroup {
   my ($this, $user) = @_;
 
   return 0 unless $user;
-  writeDebug("called isGroup($user)");
+  #writeDebug("called isGroup($user)");
 
   # may be called using a user object or a wikiName of a user
   my $wikiName = (ref $user)?$user->wikiName:$user;

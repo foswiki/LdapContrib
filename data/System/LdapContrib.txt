@@ -86,10 +86,10 @@ browser, or ask your friendly LDAP admin.
 
 ---++ Authentication
 To authenticate wiki users using your LDAP server 
-you have to register the <nop>LdapPassword class as the so called
+you have to register the <nop>LdapPasswdUser class as the so called
 <nop>PasswordManager.  This is done by adding the following lines in the
 =lib/LocalSite.cfg= configuration file (or by using the =configure= tool alternatively):
-<verbatim>$Foswiki::cfg{PasswordManager} = 'Foswiki::Users::LdapPassword';</verbatim>
+<verbatim>$Foswiki::cfg{PasswordManager} = 'Foswiki::Users::LdapPasswdUser';</verbatim>
 
 There is a further option to fallback to the normal authentication mechanism
 by defining a secondary password manager. This allows you to create native wiki

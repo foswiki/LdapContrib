@@ -36,7 +36,7 @@ $RELEASE = 'v2.99.12';
 ---+++ Foswiki::Contrib::LdapContrib
 
 General LDAP services module. This class encapsulates the platform-specific
-means to integrate an LDAP directory service.  Used by Foswiki::Users::LdapPassword
+means to integrate an LDAP directory service.  Used by Foswiki::Users::LdapPasswdUser
 for authentication, Foswiki::Users::LdapUserMapping for group definitions and
 Foswiki:Plugins/LdapNgPlugin to interface general query services.
 
@@ -214,7 +214,7 @@ sub new {
 
   # protect against actidental misconfiguration, that might lead
   # to an infinite loop during authorization etc.
-  if ($this->{secondaryPasswordManager} eq 'Foswiki::Users::LdapPassword') {
+  if ($this->{secondaryPasswordManager} eq 'Foswiki::Users::LdapPasswdUser') {
     $this->writeWarning("hey, you want infinite loops? naw.");
     $this->{secondaryPasswordManager} = '';
   }
@@ -610,7 +610,7 @@ sub initCache {
   my $this = shift;
 
   return unless $Foswiki::cfg{UserMappingManager} =~ /LdapUserMapping/ ||
-                $Foswiki::cfg{PasswordManager} =~ /LdapPassword/;
+                $Foswiki::cfg{PasswordManager} =~ /LdapPasswdUser/;
 
   writeDebug("called initCache");
 
@@ -990,7 +990,7 @@ sub cacheUserFromEntry {
   }
 
   # store it
-  writeDebug("adding wikiName='$wikiName', loginName='$loginName', dn=$dn");
+  writeDebug("adding wikiName='$wikiName', loginName='$loginName', dn='$dn'");
   $data->{"U2W::$loginName"} = $wikiName;
   $data->{"W2U::$wikiName"} = $loginName;
   $data->{"DN2U::$dn"} = $loginName;
@@ -1103,15 +1103,15 @@ sub normalizeWikiName {
 
   # remove @mydomain.com part for special mail attrs
   # SMELL: you may have a different attribute name for the email address
-  
+
   # replace umlaute
-  $name =~ s/Ã¤/ae/go;
-  $name =~ s/Ã¶/oe/go;
-  $name =~ s/Ã¼/ue/go;
-  $name =~ s/Ã„/Ae/go;
-  $name =~ s/Ã–/Oe/go;
-  $name =~ s/Ãœ/Ue/go;
-  $name =~ s/ÃŸ/ss/go;
+  $name =~ s/ä/ae/go;
+  $name =~ s/ö/oe/go;
+  $name =~ s/ü/ue/go;
+  $name =~ s/Ä/Ae/go;
+  $name =~ s/Ö/Oe/go;
+  $name =~ s/Ü/Ue/go;
+  $name =~ s/ß/ss/go;
 
   my $wikiName = '';
   foreach my $part (split(/[^$Foswiki::regex{mixedAlphaNum}]/, $name)) {
@@ -1139,13 +1139,13 @@ sub normalizeLoginName {
   # SMELL: you may have a different attribute name for the email address
   
   # replace umlaute
-  $name =~ s/Ã¤/ae/go;
-  $name =~ s/Ã¶/oe/go;
-  $name =~ s/Ã¼/ue/go;
-  $name =~ s/Ã„/Ae/go;
-  $name =~ s/Ã–/Oe/go;
-  $name =~ s/Ãœ/Ue/go;
-  $name =~ s/ÃŸ/ss/go;
+  $name =~ s/ä/ae/go;
+  $name =~ s/ö/oe/go;
+  $name =~ s/ü/ue/go;
+  $name =~ s/Ä/Ae/go;
+  $name =~ s/Ö/Oe/go;
+  $name =~ s/Ü/Ue/go;
+  $name =~ s/ß/ss/go;
   $name =~ s/[^$Foswiki::cfg{LoginNameFilterIn}]//;
 
   return $name;
@@ -1232,7 +1232,7 @@ sub getGroupMembers {
   my ($this, $groupName) = @_;
   return undef if $this->{excludeMap}{$groupName};
 
-  writeDebug("called getGroupMembers $groupName");
+  #writeDebug("called getGroupMembers $groupName");
 
   my $members = Foswiki::Sandbox::untaintUnchecked($this->{data}{"GROUPS::$groupName"}) || '';
   my @members = split(/\s*,\s*/, $members);
@@ -1266,7 +1266,7 @@ returns the wikiName of a loginName or undef if it does not exist
 sub getWikiNameOfLogin {
   my ($this, $loginName) = @_;
 
-  writeDebug("called getWikiNameOfLogin($loginName)");
+  #writeDebug("called getWikiNameOfLogin($loginName)");
   $loginName = lc($loginName);
   return Foswiki::Sandbox::untaintUnchecked($this->{data}{"U2W::$loginName"});
 }

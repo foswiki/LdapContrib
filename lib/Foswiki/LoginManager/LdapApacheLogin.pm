@@ -42,7 +42,10 @@ sub loadSession {
   # remove kerberos realm
   $authUser =~ s/\@.*$//g if defined $authUser;
 
-  $this->{ldap}->checkCacheForLoginName($authUser) if defined $authUser;
+
+  if (defined $authUser && !$this->{ldap}{excludeMap}{$authUser}) {
+    $this->{ldap}->checkCacheForLoginName($authUser);
+  }
 
   return $authUser;
 }

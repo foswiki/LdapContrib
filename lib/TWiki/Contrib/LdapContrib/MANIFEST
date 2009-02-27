@@ -1,7 +1,0 @@
-data/TWiki/LdapContrib.txt 0644
-lib/TWiki/Contrib/LdapContrib/Config.spec 0644
-lib/TWiki/Contrib/LdapContrib.pm 0644
-lib/TWiki/LoginManager/LdapApacheLogin.pm 0644
-lib/TWiki/Users/LdapPassword.pm 0644
-lib/TWiki/Users/LdapUserMapping.pm 0644
-pub/TWiki/LdapContrib/wikiringlogo40x40.png 0644
