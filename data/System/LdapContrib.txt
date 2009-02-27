@@ -160,7 +160,7 @@ $Foswiki::cfg{Ldap}{WikiNameAttribute} = 'givenName,sn';
 $Foswiki::cfg{Ldap}{NormalizeWikiNames} = 1;
 </verbatim>
 The =givenName= and =sn= (surname) LDAP attributes will be fetched and concatenated
-to form a <nop>WikiName, so that "givenName=Hans-Peter,sn=Leuthï¿½user-Schnarrenberg" will
+to form a <nop>WikiName, so that "givenName=Hans-Peter,sn=Leuth¿user-Schnarrenberg" will
 result in the <nop>WikiName "<nop>HansPeterLeuthaeuserSchnarrenberg".
 If one of the <nop>WikiNameAttributes is 'mail' the =@mydomain.com= part will be removed
 all together.
@@ -338,8 +338,12 @@ that the <nop>LdapContrib will force an update of the cache data.
    This work was partly funded by [[http://www.spanlink.com][Spanlink Communications]] and \
    [[http://www.trivadis.com][Trivadis]] |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
-|  Version: | v2.99.12 |
+|  Version: | v3.0 |
 |  Change History: | |
+|  27 Feb 2009: | fixing use of uninitialized value in user mapper; \
+                  optimized check for existing user to respect the exclude configuration setting; \
+                  renamed <nop>LdapPassword to <nop>LdapPasswdUser again to please configure; \
+                  transliteration of umlaute (this seems to happen occasionally during svn ci/co or whatever) |
 |  11 Feb 2009: | allow utf8 chars in passwords; \
                   all strings from LDAP are tainted, even if it comes from mod_ldap via remote_user; \
                   only use LDAP query as a last resort to check if a user exists; \

@@ -29,7 +29,7 @@ use Foswiki::Func;
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev$';
-$RELEASE = 'v2.99.12';
+$RELEASE = 'v3.0';
 
 =pod
 
