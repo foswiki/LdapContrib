@@ -29,7 +29,7 @@ use Foswiki::Func;
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev$';
-$RELEASE = 'v3.0';
+$RELEASE = 'v3.0.1';
 
 =pod
 
@@ -89,22 +89,14 @@ sub writeDebug {
 
 =pod
 
----+++ writeWarning($msg, $level) 
+---+++ writeWarning($msg) 
 
-Method to write a warning messages. Works also
-if Foswiki::Plugins::SESSION isn't initialized yet.
+Static Method to write a warning messages. 
 
 =cut
 
 sub writeWarning {
-  my ($this, $msg) = @_;
-
-  my $session = $Foswiki::Plugins::SESSION || $this->{session};
-  if ($session) {
-    $session->writeWarning("LdapContrib - $msg");
-  } else {
-    print STDERR "- LdapContrib - $msg\n";
-  }
+  print STDERR "- LdapContrib - $_[0]\n";
 }
 
 
@@ -215,7 +207,7 @@ sub new {
   # protect against actidental misconfiguration, that might lead
   # to an infinite loop during authorization etc.
   if ($this->{secondaryPasswordManager} eq 'Foswiki::Users::LdapPasswdUser') {
-    $this->writeWarning("hey, you want infinite loops? naw.");
+    writeWarning("hey, you want infinite loops? naw.");
     $this->{secondaryPasswordManager} = '';
   }
   
@@ -747,8 +739,7 @@ sub refreshUsersCache {
     my $mesg = $this->search(@args);
     unless ($mesg) {
       #writeDebug("oops, no result");
-      $this->writeWarning("error refeshing the user cashe: ".
-        $this->getError());
+      writeWarning("error refeshing the user cashe: ".$this->getError());
       $gotError = 1;
       last;
     }
@@ -830,8 +821,7 @@ sub refreshGroupsCache {
     my $mesg = $this->search(@args);
     unless ($mesg) {
       #writeDebug("oops, no result");
-      $this->writeWarning("error refeshing the groups cashe: ".
-        $this->getError());
+      writeWarning("error refeshing the groups cashe: ".$this->getError());
       last;
     }
 
@@ -967,15 +957,15 @@ sub cacheUserFromEntry {
     } else {
       $wikiName = $loginName;
     }
-    $this->writeWarning("no WikiNameAttributes found for $dn ... deriving WikiName from LoginName: '$wikiName'");
+    writeWarning("no WikiNameAttributes found for $dn ... deriving WikiName from LoginName: '$wikiName'");
   }
   if (defined($wikiNames->{$wikiName})) {
-    $this->writeWarning("$dn clashes with wikiName $wikiNames->{$wikiName} on $wikiName");
+    writeWarning("$dn clashes with wikiName $wikiNames->{$wikiName} on $wikiName");
   }
 
   $wikiNames->{$wikiName} = $dn;
   if (defined($loginNames->{$loginName})) {
-    $this->writeWarning("$dn clashes with loginName $loginNames->{$loginName} on $loginName");
+    writeWarning("$dn clashes with loginName $loginNames->{$loginName} on $loginName");
   }
   $loginNames->{$loginName} = $dn;
 
@@ -1049,7 +1039,7 @@ sub cacheGroupFromEntry {
   return 0 if $this->{excludeMap}{$groupName};
 
   if (defined($groupNames->{$groupName})) {
-    $this->writeWarning("$dn clashes with group $groupNames->{$groupName} on $groupName");
+    writeWarning("$dn clashes with group $groupNames->{$groupName} on $groupName");
     return 0;
   }
 
@@ -1060,7 +1050,7 @@ sub cacheGroupFromEntry {
     } else {
       $groupSuffix = '_group';
     }
-    $this->writeWarning("group $dn clashes with user $groupName ... appending $groupSuffix");
+    writeWarning("group $dn clashes with user $groupName ... appending $groupSuffix");
     $groupName .= $groupSuffix;
   }
 

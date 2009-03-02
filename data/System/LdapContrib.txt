@@ -338,8 +338,9 @@ that the <nop>LdapContrib will force an update of the cache data.
    This work was partly funded by [[http://www.spanlink.com][Spanlink Communications]] and \
    [[http://www.trivadis.com][Trivadis]] |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
-|  Version: | v3.0 |
+|  Version: | v3.0.1 |
 |  Change History: | |
+|  02 Mar 2009: | prevent error when called in the middle of the Foswiki constructor | 
 |  27 Feb 2009: | fixing use of uninitialized value in user mapper; \
                   optimized check for existing user to respect the exclude configuration setting; \
                   renamed <nop>LdapPassword to <nop>LdapPasswdUser again to please configure; \
