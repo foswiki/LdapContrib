@@ -105,7 +105,7 @@ LDAP group records can be used in access control lists by registering a
 to your =lib/LocalSite.cfg= configuration file (or by using the =configure= tool alternatively):
 <verbatim>$Foswiki::cfg{UserMappingManager} = 'Foswiki::Users::LdapUserMapping';</verbatim>
 
-In addition you can decide if you want to _add_ the LDAP groups in additio or use
+In addition you can decide if you want to _add_ the LDAP groups or use
 LDAP groups solely. This is controled by the <nop>WikiGroupsBackoff flag.  If
 switched on then LDAP groups will be added. If there's a name clash LDAP groups
 take precedence. If switched off <nop>WikiGroups are ignored.
@@ -117,6 +117,12 @@ feature,
 register the
 <nop>LdapUserMapping implementation for the <nop>UserMappingManager but
 disable the <nop>MapGroups setting.
+
+When multiple groups in your LDAP directory clash on the same group name
+you might actually wish to merge these groups as used online in your wiki.
+This is done using the =MergeGroups= flag. When disabled, clashing groups
+are reported as a warning in the server log files when the LDAP cache is
+refreshed.
 
 ---++ Membership
 LDAP servers follow different schemata to define "membership". They store the
@@ -179,6 +185,18 @@ from the old !WikiName to the new one. This is done using a setting like this:
 The parameter takes a comma separated list of =FromWikiName=ToWikiName=. Whenever
 this account is still used in an access control list, its rights will be
 inheritted by the targeted =ToWikiName= account.
+
+Group names can be rewritten using a set of rewrite rules. This is usefull when the
+names as stored in your LDAP directory don't satisfy your criteria for being displayed
+online. In conjunction with the <nop>MergeGroups flag, separate LDAP groups can be
+merged onto one group as it is used online in your wiki.
+
+A group rewrite rules has the form <pre>'pattern' => 'substitute'</pre>
+consists of a name pattern that has to match the group name to be rewritten
+and a substitute value that is used to replace the matched pattern. The
+substitute might contain $1, $2, ... , $5 to insert the first, second, ..., fifth
+bracket pair in the key pattern. (see perl manual for regular expressions).
+Example: '(.*)_users' => '$1'
 
 
 ---++ SSO and <nop>LdapContrib
@@ -338,8 +356,10 @@ that the <nop>LdapContrib will force an update of the cache data.
    This work was partly funded by [[http://www.spanlink.com][Spanlink Communications]] and \
    [[http://www.trivadis.com][Trivadis]] |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
-|  Version: | v3.0.1 |
+|  Version: | v3.1.0 |
 |  Change History: | |
+|  09 Apr 2009: | added <nop>RewriteGroups and <nop>MergeGroups feature |
+|  08 Apr 2009: | fixing nested ldap groups |
 |  02 Mar 2009: | prevent error when called in the middle of the Foswiki constructor | 
 |  27 Feb 2009: | fixing use of uninitialized value in user mapper; \
                   optimized check for existing user to respect the exclude configuration setting; \

@@ -107,13 +107,21 @@ is of no interest: so better use userExists() for that
 sub fetchPass {
   my ($this, $login) = @_;
 
-  # twiki tends to feed all sorts of strings to fetchPass,
+  #writeDebug("called fetchPass($login)");
+
+  # try to find out if foswiki calls this functio as part
+  # of an existence check. fetching the actual password of
+  # a user is more expensive than just checking the existence
+  # the _user_exists context is set in LdapUserMapping::userExists()
+  # when backing off to native groups anyway
+  return $this->userExists($login) 
+    if $this->{session}->inContext("_user_exists");
+
+  # foswiki tends to feed all sorts of strings to fetchPass,
   # let's try to filter out some of the siliest cases
   if ($this->{session}->{users}->isGroup($login)) {
     return undef;
   }
-
-  writeDebug("called fetchPass($login)");
 
   my $passwd = $this->{passwords}{$login};
 
@@ -144,9 +152,18 @@ see what comes out of this
 sub userExists {
   my ($this, $name) = @_;
 
+  #writeDebug("called userExists($name)");
+
   return 1 if 
     $this->{ldap}->getWikiNameOfLogin($name) || 
     $this->{ldap}->getLoginOfWikiName($name);
+
+  if ($this->{secondaryPasswordManager}) {
+    #writeDebug("asking secondary password manager");
+    my $passwd = $this->{secondaryPasswordManager}->fetchPass($name);
+    return 1 if defined $passwd;
+  }
+  #writeDebug("$name is unknown");
 
   return 0;
 }
@@ -163,14 +180,14 @@ check passwd by binding to the ldap server
 sub checkPassword {
   my ($this, $login, $passU) = @_;
 
-  writeDebug("called checkPassword($login, passU)");
+  #writeDebug("called checkPassword($login, passU)");
 
   # guest has no password
   return 1 if $login eq $Foswiki::cfg{DefaultUserWikiName};
 
   # get user record
   my $dn = $this->{ldap}->getDnOfLogin($login);
-  writeDebug("dn not found") unless $dn;
+  #writeDebug("dn not found") unless $dn;
 
   return $this->{ldap}->connect($dn, $passU)
     if $dn;

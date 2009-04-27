@@ -29,7 +29,7 @@ use Foswiki::Func;
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev$';
-$RELEASE = 'v3.0.1';
+$RELEASE = 'v3.1.0';
 
 =pod
 
@@ -171,6 +171,8 @@ sub new {
     bindDN=>$Foswiki::cfg{Ldap}{BindDN} || '',
     bindPassword=>$Foswiki::cfg{Ldap}{BindPassword} || '',
     mapGroups=>$Foswiki::cfg{Ldap}{MapGroups} || 0,
+    rewriteGroups=>$Foswiki::cfg{Ldap}{RewriteGroups} || {},
+    mergeGroups=>$Foswiki::cfg{Ldap}{MergeGroups} || 0,
 
     mailAttribute=>$Foswiki::cfg{Ldap}{MailAttribute} || 'mail',
 
@@ -179,7 +181,7 @@ sub new {
 
     pageSize=>$Foswiki::cfg{Ldap}{PageSize} || 200,
     isConnected=>0,
-    maxCacheAge=>$Foswiki::cfg{Ldap}{MaxCacheAge} || 86400,
+    maxCacheAge=>$Foswiki::cfg{Ldap}{MaxCacheAge},
 
     useSASL=>$Foswiki::cfg{Ldap}{UseSASL} || 0,
     saslMechanism=>$Foswiki::cfg{Ldap}{SASLMechanism} || 'PLAIN CRAM-MD4 EXTERNAL ANONYMOUS',
@@ -246,7 +248,7 @@ sub new {
   # default value for cache expiration is every 24h
   $this->{maxCacheAge} = 86400 unless defined $this->{maxCacheAge};
 
-  writeDebug("constructed a new LdapContrib object");
+  #writeDebug("constructed a new LdapContrib object");
 
   return $this;
 }
@@ -286,7 +288,7 @@ by calling this method. The methods below will do that automatically when needed
 sub connect {
   my ($this, $dn, $passwd) = @_;
 
-  writeDebug("called connect");
+  #writeDebug("called connect");
   #writeDebug("dn=$dn", 2) if $dn;
   #writeDebug("passwd=***", 2) if $passwd;
 
@@ -324,7 +326,7 @@ sub connect {
   if (defined($dn)) {
     die "illegal call to connect()" unless defined($passwd);
     $msg = $this->{ldap}->bind($dn, password=>$passwd);
-    writeDebug("bind for $dn");
+    #writeDebug("bind for $dn");
   } 
 
   # proxy user 
@@ -339,11 +341,11 @@ sub connect {
 	  pass => $this->{bindPassword},
 	},
       );
-      writeDebug("sasl bind to $this->{bindDN}");
+      #writeDebug("sasl bind to $this->{bindDN}");
       $msg = $this->{ldap}->bind($this->{bindDN}, sasl=>$sasl, version=>$this->{version} );
     } else {
       # simple bind
-      writeDebug("proxy bind");
+      #writeDebug("proxy bind");
       $msg = $this->{ldap}->bind($this->{bindDN},password=>$this->{bindPassword});
     }
   }
@@ -373,7 +375,7 @@ sub disconnect {
 
   return unless defined($this->{ldap}) && $this->{isConnected};
 
-  writeDebug("called disconnect()");
+  #writeDebug("called disconnect()");
   $this->{ldap}->unbind();
   $this->{ldap} = undef;
   $this->{isConnected} = 0;
@@ -393,7 +395,7 @@ sub finish {
   return if $this->{isFinished};
   $this->{isFinished} = 1;
 
-  writeDebug("finishing");
+  #writeDebug("finishing");
   $this->disconnect();
   delete $sharedLdapContrib{$this->{session}};
   undef $this->{cacheDB};
@@ -455,12 +457,14 @@ search using $ldap->{loginFilter} in the subtree defined by $ldap->{userBase}.
 sub getAccount {
   my ($this, $login) = @_;
 
-  writeDebug("called getAccount($login)");
+  #writeDebug("called getAccount($login)");
   return undef if $this->{excludeMap}{$login};
 
   $login = lc($login);
 
-  my $filter = '(&('.$this->{loginFilter}.')('.$this->{loginAttribute}.'='.$login.'))';
+  my $loginFilter = $this->{loginFilter};
+  $loginFilter = "($loginFilter)" unless $loginFilter =~ /^\(.*\)$/;
+  my $filter = '(&'.$loginFilter.'('.$this->{loginAttribute}.'='.$login.'))';
   my $msg = $this->search(
     filter=>$filter, 
     base=>$this->{userBase}
@@ -513,7 +517,7 @@ sub search {
 
   if ($Foswiki::cfg{Ldap}{Debug}) {
     my $attrString = join(',', @{$args{attrs}});
-    writeDebug("called search(filter=$args{filter}, base=$args{base}, scope=$args{scope}, limit=$args{limit}, attrs=$attrString)");
+    #writeDebug("called search(filter=$args{filter}, base=$args{base}, scope=$args{scope}, limit=$args{limit}, attrs=$attrString)");
   }
 
   unless ($this->{ldap}) {
@@ -533,10 +537,10 @@ sub search {
   }
   
   if ($errorCode != LDAP_SUCCESS) {
-    #writeDebug("error in search: ".$this->getError());
+    writeDebug("error in search: ".$this->getError());
     return undef;
   }
-  writeDebug("found ".$msg->count." entries");
+  #writeDebug("found ".$msg->count." entries");
 
   return $msg;
 }
@@ -604,7 +608,7 @@ sub initCache {
   return unless $Foswiki::cfg{UserMappingManager} =~ /LdapUserMapping/ ||
                 $Foswiki::cfg{PasswordManager} =~ /LdapPasswdUser/;
 
-  writeDebug("called initCache");
+  #writeDebug("called initCache");
 
   # open database
   #writeDebug("opening ldap cache from $this->{cacheFile}");
@@ -628,7 +632,7 @@ sub initCache {
     # don't refresh within 60 seconds
     if ($cacheAge < 10) {
       $refresh = 0;
-      writeDebug("suppressing cache refresh within 10 seconds");
+      #writeDebug("suppressing cache refresh within 10 seconds");
     } else {
       $refresh = 1 if $cacheAge > $this->{maxCacheAge}
     }
@@ -638,7 +642,7 @@ sub initCache {
 
   # clear to reload it
   if ($refresh) {
-    writeDebug("updating cache");
+    #writeDebug("updating cache");
     $this->refreshCache();
   }
 }
@@ -655,7 +659,7 @@ store it into a database
 sub refreshCache {
   my ($this) = @_;
 
-  writeDebug("called refreshCache");
+  #writeDebug("called refreshCache");
 
   # create a temporary tie
   my $tempCacheFile = $this->{cacheFile}.'_tmp';
@@ -676,7 +680,7 @@ sub refreshCache {
     return 0;
   }
 
-  writeDebug("flushing db to disk");
+  #writeDebug("flushing db to disk");
   $tempData{lastUpdate} = time();
   $tempCache->sync();
   undef $tempCache;
@@ -686,7 +690,7 @@ sub refreshCache {
   undef $this->{cacheDB};
   untie %{$this->{data}};
 
-  writeDebug("replacing working copy");
+  #writeDebug("replacing working copy");
   rename $tempCacheFile,$this->{cacheFile};
 
   # reconnect hash
@@ -711,7 +715,7 @@ returns true if new records have been loaded
 sub refreshUsersCache {
   my ($this, $data) = @_;
 
-  writeDebug("called refreshUsersCache()");
+  #writeDebug("called refreshUsersCache()");
   $data ||= $this->{data};
 
   # prepare search
@@ -757,11 +761,11 @@ sub refreshUsersCache {
       $page->cookie($cookie);
     } else {
       # found all
-      writeDebug("ok, no more cookie");
+      #writeDebug("ok, no more cookie");
       last;
     }
   } # end reading pages
-  writeDebug("done reading pages");
+  #writeDebug("done reading pages");
 
   # clean up
   if ($cookie) {
@@ -777,7 +781,7 @@ sub refreshUsersCache {
   $data->{WIKINAMES} = join(',', keys %wikiNames);
   $data->{LOGINNAMES} = join(',', keys %loginNames);
 
-  writeDebug("got $nrRecords keys in cache");
+  #writeDebug("got $nrRecords keys in cache");
 
   return 1;
 }
@@ -853,11 +857,14 @@ sub refreshGroupsCache {
   return 0 if $gotError;
 
   # check for primary group membership
-  foreach my $groupId (keys %{$this->{_primaryGroup}}) {
-    my $groupName = $this->{_groupId}{$groupId};
-    foreach my $member (keys %{$this->{_primaryGroup}{$groupId}}) {
-      writeDebug("adding $member to its primary group $groupName");
-      $this->{_groups}{$groupName}{$member} = 1;
+  if ($this->{_primaryGroup}) {
+    foreach my $groupId (keys %{$this->{_primaryGroup}}) {
+      my $groupName = $this->{_groupId}{$groupId};
+      next unless $groupName;
+      foreach my $member (keys %{$this->{_primaryGroup}{$groupId}}) {
+        #writeDebug("adding $member to its primary group $groupName");
+        $this->{_groups}{$groupName}{$member} = 1;
+      }
     }
   }
 
@@ -875,20 +882,20 @@ sub refreshGroupsCache {
 	if ($memberName) {
 	  $members{$memberName} = 1;
 	} else {
-	  writeDebug("oops, $member not found, but member of $groupName");
+	  #writeDebug("oops, $member not found, but member of $groupName");
 	} 
       } else {
 	$members{$member} = 1;
       }
     }
     
-    $data->{"GROUPS::$groupName"} = join(',', keys %members);
+    $data->{"GROUPS::$groupName"} = join(',', sort keys %members);
     undef $this->{_groups}{$groupName};
   }
   undef $this->{_groups};
 
   # remember list of all groups
-  $data->{GROUPS} = join(',', keys %groupNames);
+  $data->{GROUPS} = join(',', sort keys %groupNames);
 
   #writeDebug("got $nrRecords keys in cache");
 
@@ -919,7 +926,7 @@ sub cacheUserFromEntry {
   $loginName =~ s/^\s+//o;
   $loginName =~ s/\s+$//o;
   unless ($loginName) {
-    writeDebug("no loginName for $dn ... skipping");
+    #writeDebug("no loginName for $dn ... skipping");
     return 0;
   }
 
@@ -980,7 +987,7 @@ sub cacheUserFromEntry {
   }
 
   # store it
-  writeDebug("adding wikiName='$wikiName', loginName='$loginName', dn='$dn'");
+  #writeDebug("adding wikiName='$wikiName', loginName='$loginName', dn='$dn'");
   $data->{"U2W::$loginName"} = $wikiName;
   $data->{"W2U::$wikiName"} = $loginName;
   $data->{"DN2U::$dn"} = $loginName;
@@ -1021,10 +1028,11 @@ sub cacheGroupFromEntry {
   $groupNames ||= {};
 
   my $dn = $entry->dn();
+  #writeDebug("caching group for $dn");
 
   my $groupName = $entry->get_value($this->{groupAttribute});
   unless ($groupName) {
-    writeDebug("no groupName for $dn ... skipping");
+    #writeDebug("no groupName for $dn ... skipping");
     return 0;
   }
   $groupName =~ s/^\s+//o;
@@ -1038,7 +1046,30 @@ sub cacheGroupFromEntry {
   }
   return 0 if $this->{excludeMap}{$groupName};
 
-  if (defined($groupNames->{$groupName})) {
+  # check for a rewrite rule
+  my $foundRewriteRule = 0;
+  my $oldGroupName = $groupName;
+  foreach my $pattern (keys %{$this->{rewriteGroups}}) {
+    my $subst = $this->{rewriteGroups}{$pattern};
+    if ($groupName =~ /^(?:$pattern)$/) {
+      my $arg1 = $1 || '';
+      my $arg2 = $2 || '';
+      my $arg3 = $3 || '';
+      my $arg4 = $4 || '';
+      my $arg5 = $5 || '';
+      $subst =~ s/\$1/$arg1/g;
+      $subst =~ s/\$2/$arg2/g;
+      $subst =~ s/\$3/$arg3/g;
+      $subst =~ s/\$4/$arg4/g;
+      $subst =~ s/\$5/$arg5/g;
+      $groupName = $subst;
+      $foundRewriteRule = 1;
+      writeDebug("rewriting '$oldGroupName' to '$groupName'");	  
+      last;
+    }
+  }
+
+  if (!$this->{mergeGroups} &&  defined($groupNames->{$groupName})) {
     writeWarning("$dn clashes with group $groupNames->{$groupName} on $groupName");
     return 0;
   }
@@ -1053,6 +1084,10 @@ sub cacheGroupFromEntry {
     writeWarning("group $dn clashes with user $groupName ... appending $groupSuffix");
     $groupName .= $groupSuffix;
   }
+
+  # remember this
+  $data->{"DN2U::$dn"} = $groupName;
+  $data->{"U2DN::$groupName"} = $dn;
 
   # cache groupIds
   my $groupId = $entry->get_value($this->{primaryGroupAttribute});
@@ -1069,9 +1104,8 @@ sub cacheGroupFromEntry {
   }
 
   # store it
-  writeDebug("adding groupName='$groupName', dn=$dn");
-  $data->{"DN2U::$dn"} = $groupName;
-  $data->{"U2DN::$groupName"} = $dn;
+  #writeDebug("adding groupName='$groupName', dn=$dn");
+
   $groupNames->{$groupName} = 1;
 
   return 1;
@@ -1089,19 +1123,9 @@ sub normalizeWikiName {
   my ($this, $name) = @_;
 
   # remove a trailing mail domain
-  $name =~ s/@.*//o;
-
-  # remove @mydomain.com part for special mail attrs
   # SMELL: you may have a different attribute name for the email address
-
-  # replace umlaute
-  $name =~ s/ä/ae/go;
-  $name =~ s/ö/oe/go;
-  $name =~ s/ü/ue/go;
-  $name =~ s/Ä/Ae/go;
-  $name =~ s/Ö/Oe/go;
-  $name =~ s/Ü/Ue/go;
-  $name =~ s/ß/ss/go;
+  $name =~ s/@.*//o;
+  $name = transliterate($name);
 
   my $wikiName = '';
   foreach my $part (split(/[^$Foswiki::regex{mixedAlphaNum}]/, $name)) {
@@ -1123,22 +1147,147 @@ sub normalizeLoginName {
   my ($this, $name) = @_;
 
   # remove a trailing mail domain
-  $name =~ s/@.*//o;
-
-  # remove @mydomain.com part for special mail attrs
   # SMELL: you may have a different attribute name for the email address
-  
-  # replace umlaute
-  $name =~ s/ä/ae/go;
-  $name =~ s/ö/oe/go;
-  $name =~ s/ü/ue/go;
-  $name =~ s/Ä/Ae/go;
-  $name =~ s/Ö/Oe/go;
-  $name =~ s/Ü/Ue/go;
-  $name =~ s/ß/ss/go;
+  $name =~ s/@.*//o;
+  $name = transliterate($name);
   $name =~ s/[^$Foswiki::cfg{LoginNameFilterIn}]//;
 
   return $name;
+}
+
+=pod
+
+---++++ transliterate($string) -> $string
+
+transliterate some essential utf8 chars to a common replacement
+in latin1 encoding. the list above is not exhaustive.
+
+=cut
+
+sub transliterate {
+  my $string = shift;
+
+  if ($Foswiki::cfg{Site}{CharSet} =~ /^utf-?8$/i) {
+    $string =~ s/\xc3\xa0/a/go; # a grave
+    $string =~ s/\xc3\xa1/a/go; # a acute
+    $string =~ s/\xc3\xa2/a/go; # a circumflex
+    $string =~ s/\xc3\xa3/a/go; # a tilde
+    $string =~ s/\xc3\xa4/ae/go; # a uml
+    $string =~ s/\xc3\xa5/a/go; # a ring above
+    $string =~ s/\xc3\xa6/ae/go; # ae 
+
+    $string =~ s/\xc3\xa7/c/go; # c cedille 
+    $string =~ s/\xc3\x87/C/go; # C cedille 
+
+    $string =~ s/\xc3\xa8/e/go; # e grave
+    $string =~ s/\xc3\xa9/e/go; # e acute
+    $string =~ s/\xc3\xaa/e/go; # e circumflex
+    $string =~ s/\xc3\xab/e/go; # e uml
+
+    $string =~ s/\xc3\x80/A/go; # A grave
+    $string =~ s/\xc3\x81/A/go; # A acute
+    $string =~ s/\xc3\x82/A/go; # A circumflex
+    $string =~ s/\xc3\x83/A/go; # A tilde
+    $string =~ s/\xc3\x84/Ae/go; # A uml
+    $string =~ s/\xc3\x85/A/go; # A ring above
+    $string =~ s/\xc3\x86/AE/go; # AE
+
+    $string =~ s/\xc3\x92/O/go; # O grave
+    $string =~ s/\xc3\x93/O/go; # O acute
+    $string =~ s/\xc3\x94/O/go; # O circumflex
+    $string =~ s/\xc3\x95/O/go; # O tilde
+    $string =~ s/\xc3\x96/Oe/go; # O uml
+
+    $string =~ s/\xc3\x99/U/go; # U grave
+    $string =~ s/\xc3\x9a/U/go; # U acute
+    $string =~ s/\xc3\x9b/U/go; # U circumflex
+    $string =~ s/\xc3\x9c/Ue/go; # U uml
+
+    $string =~ s/\xc3\x9f/ss/go; # sharp s
+
+    $string =~ s/\xc3\xf2/o/go; # o grave
+    $string =~ s/\xc3\xf3/o/go; # o acute
+    $string =~ s/\xc3\xf4/o/go; # o circumflex
+    $string =~ s/\xc3\xf5/o/go; # o tilde
+    $string =~ s/\xc3\xb6/oe/go; # o uml
+    $string =~ s/\xc3\xb8/o/go; # o stroke
+
+    $string =~ s/\xc3\xb9/u/go; # u grave
+    $string =~ s/\xc3\xba/u/go; # u acute
+    $string =~ s/\xc3\xbb/u/go; # u circumflex
+    $string =~ s/\xc3\xbc/ue/go; # u uml
+
+    $string =~ s/\xc3\xb1/n/go; # n tilde
+
+    $string =~ s/\xc3\xbe/y/go; # y acute
+    $string =~ s/\xc3\xbf/y/go; # y uml
+
+    $string =~ s/\xc3\xac/i/go; # i grave
+    $string =~ s/\xc3\xab/i/go; # i acute
+    $string =~ s/\xc3\xac/i/go; # i circumflex
+    $string =~ s/\xc3\xad/i/go; # i uml
+  } else {
+    $string =~ s/\xe0/a/go; # a grave
+    $string =~ s/\xe1/a/go; # a acute
+    $string =~ s/\xe2/a/go; # a circumflex
+    $string =~ s/\xe3/a/go; # a tilde
+    $string =~ s/\xe4/ae/go; # a uml
+    $string =~ s/\xe5/a/go; # a ring above
+    $string =~ s/\xe6/ae/go; # ae
+
+    $string =~ s/\xe7/c/go; # c cedille
+    $string =~ s/\xc7/C/go; # C cedille
+
+    $string =~ s/\xe8/e/go; # e grave
+    $string =~ s/\xe9/e/go; # e acute
+    $string =~ s/\xea/e/go; # e circumflex
+    $string =~ s/\xeb/e/go; # e uml
+
+    $string =~ s/\xc0/A/go; # A grave
+    $string =~ s/\xc1/A/go; # A acute
+    $string =~ s/\xc2/A/go; # A circumflex
+    $string =~ s/\xc3/A/go; # A tilde
+    $string =~ s/\xc4/Ae/go; # A uml
+    $string =~ s/\xc5/A/go; # A ring above
+    $string =~ s/\xc6/AE/go; # AE
+
+    $string =~ s/\xd2/O/go; # O grave
+    $string =~ s/\xd3/O/go; # O acute
+    $string =~ s/\xd4/O/go; # O circumflex
+    $string =~ s/\xd5/O/go; # O tilde
+    $string =~ s/\xd6/Oe/go; # O uml
+
+    $string =~ s/\xd9/U/go; # U grave
+    $string =~ s/\xda/U/go; # U acute
+    $string =~ s/\xdb/U/go; # U circumflex
+    $string =~ s/\xdc/Ue/go; # U uml
+
+    $string =~ s/\xdf/ss/go; # sharp s
+
+    $string =~ s/\xf2/o/go; # o grave
+    $string =~ s/\xf3/o/go; # o acute
+    $string =~ s/\xf4/o/go; # o circumflex
+    $string =~ s/\xf5/o/go; # o tilde
+    $string =~ s/\xf6/oe/go; # o uml
+    $string =~ s/\xf8/oe/go; # o stroke
+
+    $string =~ s/\xf9/u/go; # u grave
+    $string =~ s/\xfa/u/go; # u acute
+    $string =~ s/\xfb/u/go; # u circumflex
+    $string =~ s/\xfc/ue/go; # u uml
+
+    $string =~ s/\xf1/n/go; # n tilde
+
+    $string =~ s/\xfe/y/go; # y acute
+    $string =~ s/\xff/y/go; # y uml
+
+    $string =~ s/\xec/i/go; # i grave
+    $string =~ s/\xed/i/go; # i acute
+    $string =~ s/\xee/i/go; # i circumflex
+    $string =~ s/\xef/i/go; # i uml
+  }
+
+  return $string;
 }
 
 
@@ -1175,6 +1324,8 @@ sub isGroup {
   #writeDebug("called isGroup($wikiName)");
   return undef if $this->{excludeMap}{$wikiName};
   return 1 if defined($this->{data}{"GROUPS::$wikiName"});
+  return 0 if defined($this->{data}{"W2U::$wikiName"});
+  return 0 if defined($this->{data}{"U2W::$wikiName"});
   return undef;
 }
 
@@ -1377,17 +1528,17 @@ interval (default every 24h). See the LdapContrib settings.
 sub checkCacheForLoginName {
   my ($this, $loginName) = @_;
 
-  writeDebug("called checkCacheForLoginName($loginName)");
+  #writeDebug("called checkCacheForLoginName($loginName)");
 
   my $wikiName = $this->getWikiNameOfLogin($loginName);
 
   return 1 if $wikiName;
 
   # update cache selectively
-  writeDebug("warning, $loginName is unknown, need to refresh part of the ldap cache");
+  #writeDebug("warning, $loginName is unknown, need to refresh part of the ldap cache");
   my $entry = $this->getAccount($loginName);
   unless ($entry) {
-    writeDebug("oops, no result");
+    #writeDebug("oops, no result");
   } else {
     # merge this user record
 

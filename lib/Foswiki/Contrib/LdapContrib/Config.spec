@@ -11,7 +11,7 @@
 
 # **STRING**
 # IP address (or hostname) of the LDAP server
-$Foswiki::cfg{Ldap}{Host} = 'my.domain.com';
+$Foswiki::cfg{Ldap}{Host} = 'ldap.my.domain.com';
 
 # **NUMBER**
 # Port used when binding to the LDAP server
@@ -192,6 +192,28 @@ $Foswiki::cfg{Ldap}{NormalizeGroupNames} = 0;
 # but still want to map LoginNames to WikiNames on the base of LDAP data.
 $Foswiki::cfg{Ldap}{MapGroups} = 1;
 
+# **PERL**
+# A hash mapping of rewrite rules. Rules are separated by commas. A rule has 
+# the form 
+# <pre>{
+#   'pattern1' => 'substitute1', 
+#   'pattern2' => 'substitute2' 
+# }</pre>
+# consists of a name pattern that has to match the group name to be rewritten
+# and a substitute value that is used to replace the matched pattern. The
+# substitute might contain $1, $2, ... , $5 to insert the first, second, ..., fifth
+# bracket pair in the key pattern. (see perl manual for regular expressions).
+# Example: '(.*)_users' => '$1'
+$Foswiki::cfg{Ldap}{RewriteGroups} = {
+};
+
+# **BOOLEAN**
+# Flag indicating if groups that get the same are merged. For exmaple, given two 
+# ldap groups end up having the same name even though they have a different distinguished name
+# or have been rewritten to match on the same group name (see RewriteGroups), then members
+# of both groups are merged into one group of that name.
+$Foswiki::cfg{Ldap}{MergeGroups} = 0;
+
 # **NUMBER** 
 # <h2>Performance settings</h2>
 # The following settings are used to optimize performance in your environment. Please take care.
@@ -209,4 +231,4 @@ $Foswiki::cfg{Ldap}{PageSize} = 500;
 
 # **STRING 50**
 # Prevent certain names from being looked up in LDAP
-$Foswiki::cfg{Ldap}{Exclude} = 'WikiGuest, FoswikiContributor, ProjectContributor, RegistrationAgent, AdminGroup, NobodyGroup';
+$Foswiki::cfg{Ldap}{Exclude} = 'WikiGuest, ProjectContributor, RegistrationAgent, UnknownUser, AdminGroup, NobodyGroup';
