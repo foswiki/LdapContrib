@@ -433,8 +433,8 @@ that the <nop>LdapContrib will force an update of the cache data.
 |  19 July 2006: | public release |
 |  24 May 2006: | api adjustments, improved wikiname generation |
 |  28 Apr 2006: | Initial version |
-|  Home: | http://foswiki.org/Extensions/%TOPIC% |
-|  Feedback: | http://foswiki.org/Extensions/%TOPIC%Dev |
+|  Home: | Foswiki:Extensions/%TOPIC% |
+|  Support: | Foswiki:Support/%TOPIC% |
 
 
 %META:FILEATTACHMENT{name="wikiringlogo40x40.png" attr="h" autoattached="0" comment="" date="1190996093" path="wikiringlogo40x40.png" size="2571" user="ProjectContributor" version="1"}%
