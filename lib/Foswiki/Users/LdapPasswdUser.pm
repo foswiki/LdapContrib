@@ -20,9 +20,9 @@ use base 'Foswiki::Users::Password';
 
 use strict;
 
-use Foswiki::Contrib::LdapContrib;
-use Foswiki::Plugins;
-
+use Foswiki::Contrib::LdapContrib ();
+use Foswiki::Plugins ();
+use Foswiki::ListIterator ();
 
 =pod
 

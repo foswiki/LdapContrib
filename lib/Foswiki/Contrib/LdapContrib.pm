@@ -29,7 +29,7 @@ use Foswiki::Func;
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev$';
-$RELEASE = 'v3.1.0';
+$RELEASE = 'v3.1.1';
 
 =pod
 
@@ -517,7 +517,7 @@ sub search {
 
   if ($Foswiki::cfg{Ldap}{Debug}) {
     my $attrString = join(',', @{$args{attrs}});
-    #writeDebug("called search(filter=$args{filter}, base=$args{base}, scope=$args{scope}, limit=$args{limit}, attrs=$attrString)");
+    writeDebug("called search(filter=$args{filter}, base=$args{base}, scope=$args{scope}, limit=$args{limit}, attrs=$attrString)");
   }
 
   unless ($this->{ldap}) {
@@ -1162,6 +1162,8 @@ sub normalizeLoginName {
 transliterate some essential utf8 chars to a common replacement
 in latin1 encoding. the list above is not exhaustive.
 
+use http://www.ltg.ed.ac.uk/~richard/utf-8.html to add more recodings
+
 =cut
 
 sub transliterate {
@@ -1175,14 +1177,7 @@ sub transliterate {
     $string =~ s/\xc3\xa4/ae/go; # a uml
     $string =~ s/\xc3\xa5/a/go; # a ring above
     $string =~ s/\xc3\xa6/ae/go; # ae 
-
-    $string =~ s/\xc3\xa7/c/go; # c cedille 
-    $string =~ s/\xc3\x87/C/go; # C cedille 
-
-    $string =~ s/\xc3\xa8/e/go; # e grave
-    $string =~ s/\xc3\xa9/e/go; # e acute
-    $string =~ s/\xc3\xaa/e/go; # e circumflex
-    $string =~ s/\xc3\xab/e/go; # e uml
+    $string =~ s/\xc4\x85/a/go; # a ogonek
 
     $string =~ s/\xc3\x80/A/go; # A grave
     $string =~ s/\xc3\x81/A/go; # A acute
@@ -1191,6 +1186,31 @@ sub transliterate {
     $string =~ s/\xc3\x84/Ae/go; # A uml
     $string =~ s/\xc3\x85/A/go; # A ring above
     $string =~ s/\xc3\x86/AE/go; # AE
+    $string =~ s/\xc4\x84/A/go; # A ogonek
+
+
+    $string =~ s/\xc3\xa7/c/go; # c cedille 
+    $string =~ s/\xc4\x87/c/go; # c acute
+    $string =~ s/\xc3\x87/C/go; # C cedille 
+    $string =~ s/\xc4\x86/C/go; # C acute
+
+    $string =~ s/\xc3\xa8/e/go; # e grave
+    $string =~ s/\xc3\xa9/e/go; # e acute
+    $string =~ s/\xc3\xaa/e/go; # e circumflex
+    $string =~ s/\xc3\xab/e/go; # e uml
+
+    $string =~ s/\xc4\x99/e/go; # e ogonek
+    $string =~ s/\xc4\x98/E/go; # E ogonek
+
+    $string =~ s/\xc3\xb2/o/go; # o grave
+    $string =~ s/\xc3\xb3/o/go; # o acute
+    $string =~ s/\xc3\xb4/o/go; # o circumflex
+    $string =~ s/\xc3\xb5/o/go; # o tilde
+    $string =~ s/\xc3\xb6/oe/go; # o uml
+    $string =~ s/\xc3\xb8/o/go; # o stroke
+
+    $string =~ s/\xc3\xb3/o/go; # o acute
+    $string =~ s/\xc3\x93/O/go; # O acute
 
     $string =~ s/\xc3\x92/O/go; # O grave
     $string =~ s/\xc3\x93/O/go; # O acute
@@ -1198,26 +1218,23 @@ sub transliterate {
     $string =~ s/\xc3\x95/O/go; # O tilde
     $string =~ s/\xc3\x96/Oe/go; # O uml
 
+    $string =~ s/\xc3\xb9/u/go; # u grave
+    $string =~ s/\xc3\xba/u/go; # u acute
+    $string =~ s/\xc3\xbb/u/go; # u circumflex
+    $string =~ s/\xc3\xbc/ue/go; # u uml
+
     $string =~ s/\xc3\x99/U/go; # U grave
     $string =~ s/\xc3\x9a/U/go; # U acute
     $string =~ s/\xc3\x9b/U/go; # U circumflex
     $string =~ s/\xc3\x9c/Ue/go; # U uml
 
     $string =~ s/\xc3\x9f/ss/go; # sharp s
-
-    $string =~ s/\xc3\xf2/o/go; # o grave
-    $string =~ s/\xc3\xf3/o/go; # o acute
-    $string =~ s/\xc3\xf4/o/go; # o circumflex
-    $string =~ s/\xc3\xf5/o/go; # o tilde
-    $string =~ s/\xc3\xb6/oe/go; # o uml
-    $string =~ s/\xc3\xb8/o/go; # o stroke
-
-    $string =~ s/\xc3\xb9/u/go; # u grave
-    $string =~ s/\xc3\xba/u/go; # u acute
-    $string =~ s/\xc3\xbb/u/go; # u circumflex
-    $string =~ s/\xc3\xbc/ue/go; # u uml
+    $string =~ s/\xc5\x9b/s/go; # s acute
+    $string =~ s/\xc5\x9a/S/go; # S acute
 
     $string =~ s/\xc3\xb1/n/go; # n tilde
+    $string =~ s/\xc5\x84/n/go; # n acute
+    $string =~ s/\xc5\x83/N/go; # N acute
 
     $string =~ s/\xc3\xbe/y/go; # y acute
     $string =~ s/\xc3\xbf/y/go; # y uml
@@ -1226,6 +1243,14 @@ sub transliterate {
     $string =~ s/\xc3\xab/i/go; # i acute
     $string =~ s/\xc3\xac/i/go; # i circumflex
     $string =~ s/\xc3\xad/i/go; # i uml
+
+    $string =~ s/\xc5\x82/l/go; # l stroke
+    $string =~ s/\xc5\x81/L/go; # L stroke
+
+    $string =~ s/\xc5\xba/z/go; # z acute
+    $string =~ s/\xc5\xb9/Z/go; # Z acute
+    $string =~ s/\xc5\xbc/z/go; # z dot
+    $string =~ s/\xc5\xbb/Z/go; # Z dot
   } else {
     $string =~ s/\xe0/a/go; # a grave
     $string =~ s/\xe1/a/go; # a acute
@@ -1234,14 +1259,7 @@ sub transliterate {
     $string =~ s/\xe4/ae/go; # a uml
     $string =~ s/\xe5/a/go; # a ring above
     $string =~ s/\xe6/ae/go; # ae
-
-    $string =~ s/\xe7/c/go; # c cedille
-    $string =~ s/\xc7/C/go; # C cedille
-
-    $string =~ s/\xe8/e/go; # e grave
-    $string =~ s/\xe9/e/go; # e acute
-    $string =~ s/\xea/e/go; # e circumflex
-    $string =~ s/\xeb/e/go; # e uml
+    $string =~ s/\x01\x05/a/go; # a ogonek
 
     $string =~ s/\xc0/A/go; # A grave
     $string =~ s/\xc1/A/go; # A acute
@@ -1250,19 +1268,20 @@ sub transliterate {
     $string =~ s/\xc4/Ae/go; # A uml
     $string =~ s/\xc5/A/go; # A ring above
     $string =~ s/\xc6/AE/go; # AE
+    $string =~ s/\x01\x04/A/go; # A ogonek
 
-    $string =~ s/\xd2/O/go; # O grave
-    $string =~ s/\xd3/O/go; # O acute
-    $string =~ s/\xd4/O/go; # O circumflex
-    $string =~ s/\xd5/O/go; # O tilde
-    $string =~ s/\xd6/Oe/go; # O uml
 
-    $string =~ s/\xd9/U/go; # U grave
-    $string =~ s/\xda/U/go; # U acute
-    $string =~ s/\xdb/U/go; # U circumflex
-    $string =~ s/\xdc/Ue/go; # U uml
+    $string =~ s/\xe7/c/go; # c cedille
+    $string =~ s/\x01\x07/C/go; # c acute
+    $string =~ s/\xc7/C/go; # C cedille
+    $string =~ s/\x01\x06/c/go; # C acute
 
-    $string =~ s/\xdf/ss/go; # sharp s
+    $string =~ s/\xe8/e/go; # e grave
+    $string =~ s/\xe9/e/go; # e acute
+    $string =~ s/\xea/e/go; # e circumflex
+    $string =~ s/\xeb/e/go; # e uml
+    $string =~ s/\x01\x19/e/go; # e ogonek
+    $string =~ s/\xc4\x18/E/go; # E ogonek
 
     $string =~ s/\xf2/o/go; # o grave
     $string =~ s/\xf3/o/go; # o acute
@@ -1271,12 +1290,32 @@ sub transliterate {
     $string =~ s/\xf6/oe/go; # o uml
     $string =~ s/\xf8/oe/go; # o stroke
 
+    $string =~ s/\xd3/o/go; # o acute
+    $string =~ s/\xf3/O/go; # O acute
+
+    $string =~ s/\xd2/O/go; # O grave
+    $string =~ s/\xd3/O/go; # O acute
+    $string =~ s/\xd4/O/go; # O circumflex
+    $string =~ s/\xd5/O/go; # O tilde
+    $string =~ s/\xd6/Oe/go; # O uml
+
     $string =~ s/\xf9/u/go; # u grave
     $string =~ s/\xfa/u/go; # u acute
     $string =~ s/\xfb/u/go; # u circumflex
     $string =~ s/\xfc/ue/go; # u uml
 
+    $string =~ s/\xd9/U/go; # U grave
+    $string =~ s/\xda/U/go; # U acute
+    $string =~ s/\xdb/U/go; # U circumflex
+    $string =~ s/\xdc/Ue/go; # U uml
+
+    $string =~ s/\xdf/ss/go; # sharp s
+    $string =~ s/\x01\x5b/s/go; # s acute
+    $string =~ s/\x01\x5a/S/go; # S acute
+
     $string =~ s/\xf1/n/go; # n tilde
+    $string =~ s/\x01\x44/n/go; # n acute
+    $string =~ s/\x01\x43/N/go; # N acute
 
     $string =~ s/\xfe/y/go; # y acute
     $string =~ s/\xff/y/go; # y uml
@@ -1285,6 +1324,14 @@ sub transliterate {
     $string =~ s/\xed/i/go; # i acute
     $string =~ s/\xee/i/go; # i circumflex
     $string =~ s/\xef/i/go; # i uml
+
+    $string =~ s/\x01\x42/l/go; # l stroke
+    $string =~ s/\x01\x41/L/go; # L stroke
+
+    $string =~ s/\x01\x7a/z/go; # z acute
+    $string =~ s/\x01\x79/Z/go; # Z acute
+    $string =~ s/\x01\x7c/z/go; # z dot
+    $string =~ s/\x01\x7b/Z/go; # Z dot
   }
 
   return $string;

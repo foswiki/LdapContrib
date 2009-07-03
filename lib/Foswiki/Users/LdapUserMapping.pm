@@ -150,6 +150,7 @@ sub getWikiName {
   writeDebug("called LdapUserMapping::getWikiName($cUID)");
     
   my $loginName = $this->getLoginName($cUID);
+  return undef unless $loginName;
 
   return $loginName if $this->isGroup($loginName);
 
@@ -188,8 +189,6 @@ if this is not the case we fallback to the default behavior
 sub getEmails {
   my ($this, $user, $emails) = @_;
 
-  my $login = $this->getLoginName($user);
-
   $emails ||= {};
 
   return values %$emails if $emails->{$user};
@@ -201,8 +200,11 @@ sub getEmails {
     }
   } else {
     # get emails from the password manager
-    foreach ($this->{passwords}->getEmails($this->getLoginName($user), $emails)) {
-      $$emails{$user} = $_;
+    my $login = $this->getLoginName($user);
+    if ($login) {
+      foreach ($this->{passwords}->getEmails($login, $emails)) {
+        $$emails{$user} = $_;
+      }
     }
   }
 
@@ -222,6 +224,8 @@ sub userExists {
   my ($this, $cUID) = @_;
 
   my $loginName = $this->getLoginName($cUID);
+  return 0 unless $loginName;
+
   my $wikiName = $this->{ldap}->getWikiNameOfLogin($loginName);
 
   return 1 if $wikiName;

@@ -333,16 +333,8 @@ that the <nop>LdapContrib will force an update of the cache data.
 %$POD%
 
 ---++ Installation Instructions
+%$INSTALL_INSTRUCTIONS%
 
-   * Download the ZIP file from the Plugin web (see below)
-   * Unzip ==%TOPIC%.zip== in your installation directory. Content: 
-   | *File:* | *Description:* |
-%$MANIFEST%
-   * Optionally, run ==%TOPIC%_installer== to automatically check and install other 
-     packages that this module depends on. You can also do this step manually.
-   * Alternatively, manually make sure the dependencies listed in the table below 
-     are resolved.
-     %$DEPENDENCIES%
    * Read the the above documentation, i.e. the [[#Configuration][Configuration]] section.
    * Use <a href="%SCRIPTURLPATH{"configure"}%">configure</a> to set the LDAP settings.
 
@@ -356,8 +348,10 @@ that the <nop>LdapContrib will force an update of the cache data.
    This work was partly funded by [[http://www.spanlink.com][Spanlink Communications]] and \
    [[http://www.trivadis.com][Trivadis]] |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
-|  Version: | v3.1.0 |
+|  Release: | %$RELEASE% |
+|  Version: | %$VERSION% |
 |  Change History: | |
+|  25 May 2009: | extended transliteration of utf8 chars to polish chars (Bartosz Dziuda) |
 |  09 Apr 2009: | added <nop>RewriteGroups and <nop>MergeGroups feature |
 |  08 Apr 2009: | fixing nested ldap groups |
 |  02 Mar 2009: | prevent error when called in the middle of the Foswiki constructor | 

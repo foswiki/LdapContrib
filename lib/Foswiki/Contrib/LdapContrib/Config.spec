@@ -1,4 +1,5 @@
-# ---+ LDAP settings
+# ---+ User Logins
+# ---++ LDAP
 # This is the configuration used by the <b>LdapContrib</b> and the
 # <b>LdapNgPlugin</b>. 
 # <p>
@@ -7,7 +8,7 @@
 # To Use groups defined in LDAP enable the UserMappingManager <b>LdapUserMapping</b>.
 # (see the Security Setting section)
 
-# <h2>Connection settings</h2>
+# ---+++ Connection settings
 
 # **STRING**
 # IP address (or hostname) of the LDAP server
@@ -83,13 +84,10 @@ $Foswiki::cfg{Ldap}{TLSClientKey} = '';
 # comments there.
 $Foswiki::cfg{Ldap}{Debug} = 0;
 
-# **STRING**
-# <h2>User settings</h2>
+# ---+++ User settings
 # The options below configure how the wiki will extract account records from LDAP.
-#
-# <!-- work around broken configure -->
-# </td></tr><tr><td colspan="2" class="docdata info">
-#
+ 
+# **STRING**
 # The distinguished name of the users tree. All user accounts will
 # be searched for in the subtree under UserBase.
 $Foswiki::cfg{Ldap}{UserBase} = 'ou=people,dc=my,dc=domain,dc=com';
@@ -139,9 +137,6 @@ $Foswiki::cfg{Ldap}{SecondaryPasswordManager} = 'none';
 # well as the use of LDAP groups. 
 # In any case you have to select the LdapUserMapping as the UserMappingManager in the
 # Security Section section above.
-#
-# <!-- work around broken configure -->
-# </td></tr><tr><td colspan="2" class="docdata info">
 #
 # The distinguished name of the groups tree. All group definitions
 # are used in the subtree under GroupBase. 
@@ -214,13 +209,10 @@ $Foswiki::cfg{Ldap}{RewriteGroups} = {
 # of both groups are merged into one group of that name.
 $Foswiki::cfg{Ldap}{MergeGroups} = 0;
 
-# **NUMBER** 
-# <h2>Performance settings</h2>
+# ---+++ Performance settings
 # The following settings are used to optimize performance in your environment. Please take care.
-#
-# <!-- work around broken configure -->
-# </td></tr><tr><td colspan="2" class="docdata info">
-#
+
+# **NUMBER** 
 # Time in seconds when cache data expires and is reloaded anew, defaults to one day.
 $Foswiki::cfg{Ldap}{MaxCacheAge} = 86400;
 
