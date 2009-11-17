@@ -96,6 +96,11 @@ $Foswiki::cfg{Ldap}{UserBase} = 'ou=people,dc=my,dc=domain,dc=com';
 # Filter to be used to find login accounts. Compare to GroupFilter below
 $Foswiki::cfg{Ldap}{LoginFilter} = 'objectClass=posixAccount';
 
+# **SELECT sub,one**
+# The scope of the search for users starting at UserBase. While "sub" search recursively
+# a "one" will only search up to one level under the UserBase.
+$Foswiki::cfg{Ldap}{UserScope} = 'sub';
+
 # **STRING**
 # The user login name attribute. This is the attribute name that is
 # used to login.
@@ -131,13 +136,13 @@ $Foswiki::cfg{Ldap}{AllowChangePassword} = 0;
 # registered to the wiki natively. Note, that <b>this must not be Foswiki::Users::LdapPasswdUser again!</b>
 $Foswiki::cfg{Ldap}{SecondaryPasswordManager} = 'none';
 
-# **STRING**
-# <h2>Group settings</h2>
+# ---+++ Group settings
 # The settings below configures the mapping and processing of LoginNames and WikiNames as
 # well as the use of LDAP groups. 
 # In any case you have to select the LdapUserMapping as the UserMappingManager in the
 # Security Section section above.
-#
+
+# **STRING**
 # The distinguished name of the groups tree. All group definitions
 # are used in the subtree under GroupBase. 
 $Foswiki::cfg{Ldap}{GroupBase} = 'ou=group,dc=my,dc=domain,dc=com';
@@ -145,6 +150,11 @@ $Foswiki::cfg{Ldap}{GroupBase} = 'ou=group,dc=my,dc=domain,dc=com';
 # **STRING**
 # Filter to be used to find groups. Compare to LoginFilter.
 $Foswiki::cfg{Ldap}{GroupFilter} = 'objectClass=posixGroup';
+
+# **SELECT sub,one**
+# The scope of the search for groups starting at GroupBase. While "sub" search recursively
+# a "one" will only search up to one level under the GroupBase.
+$Foswiki::cfg{Ldap}{GroupScope} = 'sub';
 
 # **STRING**
 # This is the name of the attribute that holds the name of the 
@@ -166,6 +176,11 @@ $Foswiki::cfg{Ldap}{PrimaryGroupAttribute} = 'gidNumber';
 # 'groupOfNames' the MemberAttribute will store a literal DN pointing to the account record. In this
 # case you have to switch on the MemberIndirection flag below.
 $Foswiki::cfg{Ldap}{MemberAttribute} = 'memberUid';
+
+# **STRING**
+# This is the name of the attribute in a group record used to point to the inner group record.
+# This value is often the same than MemberAttribute but may differ for some LDAP servers.
+$Foswiki::cfg{Ldap}{InnerGroupAttribute} = 'memberUid';
 
 # **BOOLEAN**
 # Flag indicating wether the MemberAttribute of a group stores a DN. 
@@ -202,6 +217,22 @@ $Foswiki::cfg{Ldap}{MapGroups} = 1;
 $Foswiki::cfg{Ldap}{RewriteGroups} = {
 };
 
+# **PERL**
+# A hash mapping of rewrite rules. Rules are separated by commas. A rule has 
+# the form 
+# <pre>{
+#   'pattern1' => 'substitute1', 
+#   'pattern2' => 'substitute2' 
+# }</pre>
+# consists of a name pattern that has to match the wiki name to be rewritten
+# and a substitute value that is used to replace the matched pattern. The
+# substitute might contain $1, $2, ... , $5 to insert the first, second, ..., fifth
+# bracket pair in the key pattern. (see perl manual for regular expressions).
+# Example: '(.*)_users' => '$1'
+$Foswiki::cfg{Ldap}{RewriteWikiNames} = {
+};
+
+
 # **BOOLEAN**
 # Flag indicating if groups that get the same are merged. For exmaple, given two 
 # ldap groups end up having the same name even though they have a different distinguished name
@@ -216,9 +247,15 @@ $Foswiki::cfg{Ldap}{MergeGroups} = 0;
 # Time in seconds when cache data expires and is reloaded anew, defaults to one day.
 $Foswiki::cfg{Ldap}{MaxCacheAge} = 86400;
 
+# **BOOLEAN**
+# Enable precaching of LDAP data. If you switch this off the LDAP users and groups will not be
+# prefetched from LDAP when building a new cache. Activated by default.
+$Foswiki::cfg{Ldap}{Precache} = 1;
+
 # **NUMBER**
 # Number of user objects to fetch in one paged result when building the username mappings;
 # this is a speed optimization option, use this value with caution.
+# Requires access to the 'control' LDAP extension as an LDAP client. Use '0' to disable it.
 $Foswiki::cfg{Ldap}{PageSize} = 500; 
 
 # **STRING 50**

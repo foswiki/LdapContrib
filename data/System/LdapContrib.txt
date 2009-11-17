@@ -1,4 +1,4 @@
-%META:TOPICINFO{author="ProjectContributor" date="1195737941" format="1.1" reprev="1.1" version="$Rev$"}%
+%META:TOPICINFO{author="ProjectContributor" date="1255974627" format="1.1" version="1.2"}%
 ---+!! %TOPIC%
 <!--
 
@@ -332,6 +332,9 @@ that the <nop>LdapContrib will force an update of the cache data.
 ---++ Implementation documentation
 %$POD%
 
+---++ Dependencies
+%$DEPENDENCIES%
+
 ---++ Installation Instructions
 %$INSTALL_INSTRUCTIONS%
 
@@ -343,14 +346,25 @@ that the <nop>LdapContrib will force an update of the cache data.
    * Set SHORTDESCRIPTION = LDAP services for Foswiki
 -->
 
+This work was partly sponsored by 
+   * [[http://www.spanlink.com][Spanlink Communications]] 
+   * [[http://www.trivadis.com][Trivadis]] 
+   * [[http://www.ibm.com][IBM]]
+   * [[http://www.dfs.de][Deutsche Flugsicherung]]
+   * [[http://www.testo.de][Testo]]
+
 |  Author: | Michael Daum |
-|  Copyright &copy;: | 2006-2009 Michael Daum http://michaeldaumconsulting.com %BR% \
-   This work was partly funded by [[http://www.spanlink.com][Spanlink Communications]] and \
-   [[http://www.trivadis.com][Trivadis]] |
+|  Copyright&nbsp;&copy;: | 2006-2009 Michael Daum http://michaeldaumconsulting.com |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
-|  Change History: | |
+|  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  17 Nov 2009: | incremental cache updates for _big_ ldap directories and inner groups feature (Cyril Bousquet, IBM); \
+                  added scope parameter searching for users and groups; \
+                  added rewrite rules for wiki names; \
+                  added name clash resolution for wiki names; \
+                  fixed race condition in cache upate leading to file corruption; \
+                  cleanup of internal api to properly deal with interim caching structures |
 |  25 May 2009: | extended transliteration of utf8 chars to polish chars (Bartosz Dziuda) |
 |  09 Apr 2009: | added <nop>RewriteGroups and <nop>MergeGroups feature |
 |  08 Apr 2009: | fixing nested ldap groups |

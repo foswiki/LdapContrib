@@ -18,10 +18,8 @@
 package Foswiki::Users::LdapUserMapping;
 
 use strict;
-use Foswiki::Users::TopicUserMapping;
-use Foswiki::Contrib::LdapContrib;
-use Foswiki::Plugins;
-use Foswiki::ListIterator;
+use Foswiki::Contrib::LdapContrib ();
+use Foswiki::ListIterator ();
 
 use base 'Foswiki::Users::TopicUserMapping';
 
@@ -497,11 +495,11 @@ sub handlesUser {
 
   if ($this->{ldap}{mapGroups}) {
     # ask LDAP
-    return 1 if defined $login && $this->{ldap}->isGroup($login);
-    return 1 if defined $wikiName && $this->{ldap}->isGroup($wikiName);
+    return 1 if $login && $this->{ldap}->isGroup($login);
+    return 1 if $wikiName && $this->{ldap}->isGroup($wikiName);
   }
-  return 1 if defined $login && $this->{ldap}->getWikiNameOfLogin($login);
-  return 1 if defined $wikiName && $this->{ldap}->getLoginOfWikiName($wikiName);
+  return 1 if $login && $this->{ldap}->getWikiNameOfLogin($login);
+  return 1 if $wikiName && $this->{ldap}->getLoginOfWikiName($wikiName);
 
   $cUID = $this->login2cUID($login) if !$cUID && $login;
   return 1 if defined $cUID && $this->userExists($cUID);
