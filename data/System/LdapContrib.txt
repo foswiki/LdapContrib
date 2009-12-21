@@ -53,7 +53,7 @@ Tip: You can add this button on any page by adding
 </verbatim>
 to it.
 
----++ LDAP questionary
+---++ LDAP questionnaire
 Before you can further configure the LDAP connection you will have to answer
 a set of basic questions about your LDAP server. These are:
 
@@ -81,7 +81,7 @@ a set of basic questions about your LDAP server. These are:
      Note, that if the member attribute of a group is a DN you need to enable
      "member indirection" (see [[#Membership]]).
 
-Collect the answers to these questions either yourself using your favorit LDAP
+Collect the answers to these questions either yourself using your favorite LDAP
 browser, or ask your friendly LDAP admin. 
 
 ---++ Authentication
@@ -106,7 +106,7 @@ to your =lib/LocalSite.cfg= configuration file (or by using the =configure= tool
 <verbatim>$Foswiki::cfg{UserMappingManager} = 'Foswiki::Users::LdapUserMapping';</verbatim>
 
 In addition you can decide if you want to _add_ the LDAP groups or use
-LDAP groups solely. This is controled by the <nop>WikiGroupsBackoff flag.  If
+LDAP groups solely. This is controlled by the <nop>WikiGroupsBackoff flag.  If
 switched on then LDAP groups will be added. If there's a name clash LDAP groups
 take precedence. If switched off <nop>WikiGroups are ignored.
 
@@ -173,20 +173,20 @@ all together.
 
 The login name can be normalized by enabling the
 <verbatim>$Foswiki::cfg{Ldap}{NormalizeLoginNames} = 1;</verbatim>
-setting. However the normalized result will not be forced to be a cammel case <nop>WikiName.
+setting. However the normalized result will not be forced to be a camel case <nop>WikiName.
 
 Similar to the <nop>WikiName of a user, group names can be normalized using
 <verbatim>$Foswiki::cfg{Ldap}{NormalizeGroupNames} = 1;</verbatim>
 
-If a user in your LDAP directory changed his name, e.g. because of a mariage,
+If a user in your LDAP directory changed his name, e.g. because of a marriage,
 this use can be mapped to his/her old account using an alias that points back
 from the old !WikiName to the new one. This is done using a setting like this:
 <verbatim>$Foswiki::cfg{Ldap}{WikiNameAliases} = 'MaryMalone=MaryForrester, ...'</verbatim>
 The parameter takes a comma separated list of =FromWikiName=ToWikiName=. Whenever
 this account is still used in an access control list, its rights will be
-inheritted by the targeted =ToWikiName= account.
+inherited by the targeted =ToWikiName= account.
 
-Group names can be rewritten using a set of rewrite rules. This is usefull when the
+Group names can be rewritten using a set of rewrite rules. This is useful when the
 names as stored in your LDAP directory don't satisfy your criteria for being displayed
 online. In conjunction with the <nop>MergeGroups flag, separate LDAP groups can be
 merged onto one group as it is used online in your wiki.
@@ -202,11 +202,11 @@ Example: '(.*)_users' => '$1'
 ---++ SSO and <nop>LdapContrib
 First of all, <nop>LdapContrib does not provide any SSO solution. Nor does LDAP
 per se. However, LDAP directories might come with SSO facilities that they
-provide via kerberos or similar. Unfortunately, nowaday browsers themselves are
+provide via kerberos or similar. Unfortunately, nowadays browsers themselves are
 not kerberized.  They depend on talking to the webserver using HTTP means,
 which then decides which tickets are valid for the remote user by talking to
-the acutal authority.  That is, authentication is implemented using an
-approriate apache module.
+the actual authority.  That is, authentication is implemented using an
+appropriate apache module.
 
 <nop>LdapContrib can then be used to complete an LDAP integration by
 providing the mapping to <nop>WikiNames as well as email information and group
@@ -235,7 +235,7 @@ to use the standard <nop>ApacheLogin manager, and you now install
 
 ---++ Simple Example 
 For the sake of this documentation we assume that users accounts in your
-database are at leat of the type =posixAccount= and optionally also of type
+database are at least of the type =posixAccount= and optionally also of type
 =inetOrgPerson= storing email addresses. Moreover users are stored in a subtree
 =ou=people= and groups are defined in =ou=group=. Here are some example LDAP
 records:
@@ -301,7 +301,7 @@ to be added to the =lib/LocalSite.cfg= configuration file.
 Use the <a href="%SCRIPTURLPATH{"configure"}%">configure</a> tool (at least 
 once) after you installed this package. Have a look at your =lib/LocalSite.cfg=
 file afterwards. You might also make your changes therein directly to
-accomodate your installation to your specifc LDAP installation and user
+accommodate your installation to your specific LDAP installation and user
 accounting. See the documentation within the =configure= tool for an explanation
 of the various options.
 
@@ -325,7 +325,7 @@ cronjob similar to:
 <verbatim>
 5 0 * * * cd <wiki-install-path>/bin && ./view refreshldap=on Main/WebHome >/dev/null
 </verbatim>
-This will call the engine on the commandline and provide the necessary query parameters so
+This will call the engine on the command line and provide the necessary query parameters so
 that the <nop>LdapContrib will force an update of the cache data.
 
 
@@ -338,7 +338,7 @@ that the <nop>LdapContrib will force an update of the cache data.
 ---++ Installation Instructions
 %$INSTALL_INSTRUCTIONS%
 
-   * Read the the above documentation, i.e. the [[#Configuration][Configuration]] section.
+   * Read the above documentation, i.e. the [[#Configuration][Configuration]] section.
    * Use <a href="%SCRIPTURLPATH{"configure"}%">configure</a> to set the LDAP settings.
 
 ---++ Contrib Info
@@ -363,8 +363,8 @@ This work was partly sponsored by
                   added scope parameter searching for users and groups; \
                   added rewrite rules for wiki names; \
                   added name clash resolution for wiki names; \
-                  fixed race condition in cache upate leading to file corruption; \
-                  cleanup of internal api to properly deal with interim caching structures |
+                  fixed race condition in cache update leading to file corruption; \
+                  cleanup of internal API to properly deal with interim caching structures |
 |  25 May 2009: | extended transliteration of utf8 chars to polish chars (Bartosz Dziuda) |
 |  09 Apr 2009: | added <nop>RewriteGroups and <nop>MergeGroups feature |
 |  08 Apr 2009: | fixing nested ldap groups |
@@ -372,12 +372,12 @@ This work was partly sponsored by
 |  27 Feb 2009: | fixing use of uninitialized value in user mapper; \
                   optimized check for existing user to respect the exclude configuration setting; \
                   renamed <nop>LdapPassword to <nop>LdapPasswdUser again to please configure; \
-                  transliteration of umlaute (this seems to happen occasionally during svn ci/co or whatever) |
+                  transliteration of umlaut (this seems to happen occasionally during svn ci/co or whatever) |
 |  11 Feb 2009: | allow utf8 chars in passwords; \
                   all strings from LDAP are tainted, even if it comes from mod_ldap via remote_user; \
                   only use LDAP query as a last resort to check if a user exists; \
                   prevent explicitly excluded login names to be added to the cache |
-|  20 Jan 2009: | fixed geting emails for groups and login names |
+|  20 Jan 2009: | fixed getting emails for groups and login names |
 |  19 Dec 2008: | fixed group mapping under <nop>MapGroup=off |
 |  05 Dec 2008: | fixed group mapping |
 |  04 Dec 2008: | fixed getting email info |
@@ -404,9 +404,9 @@ This work was partly sponsored by
                   added normalization of login and group names, \
                   added secondary password manager |
 |  31 Aug 2007: | rewrite of the cache |
-|  08 June 2007: | don't use the store object during TWiki's destructore; \
+|  08 June 2007: | don't use the store object during TWiki's destructor; \
                    don't lookup login names of groups |
-|  04 June 2007: | don't be casesensitive for login names; \
+|  04 June 2007: | don't be case sensitive for login names; \
                    fixed several utf8 issues; \
                    fixed crash when no groups where found;\
                    caching mapping privately; added <nop>MaxCacheAge; \
@@ -431,7 +431,7 @@ This work was partly sponsored by
                   new configuration option "Exclude" to exclude standard TWiki user accounts, e.g. <nop>RegistrationAgent, \
                   from being looked up in LDAP; \
                   added support for faster API implementing =isMemberOf=;\
-                  added Config.spec file to integrate the <nop>LadpContrib into Twiki's "configure" tool; \
+                  added Config.spec file to integrate the <nop>LdapContrib into TWiki's "configure" tool; \
                   added support for <nop>WikiNames derived from mail attributes |
 |  03 Nov 2006: | fixed binding to the server by first searching the full dn instead of assuming a fixed one \
                   (issue found by Cederic Weber); \
@@ -439,7 +439,7 @@ This work was partly sponsored by
                   login-to-wikiname conversion only |
 |  02 Aug 2006: | added a user accounts in memory cache |
 |  19 July 2006: | public release |
-|  24 May 2006: | api adjustments, improved wikiname generation |
+|  24 May 2006: | API adjustments, improved wikiname generation |
 |  28 Apr 2006: | Initial version |
 |  Home: | Foswiki:Extensions/%TOPIC% |
 |  Support: | Foswiki:Support/%TOPIC% |
