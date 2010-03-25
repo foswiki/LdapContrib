@@ -16,7 +16,8 @@
 # As per the GPL, removal of this notice is prohibited.
 
 package Foswiki::Users::LdapPasswdUser;
-use base 'Foswiki::Users::Password';
+use Foswiki::Users::Password;
+our @ISA = qw( Foswiki::Users::Password );
 
 use strict;
 

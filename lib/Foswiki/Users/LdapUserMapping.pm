@@ -21,7 +21,8 @@ use strict;
 use Foswiki::Contrib::LdapContrib ();
 use Foswiki::ListIterator ();
 
-use base 'Foswiki::Users::TopicUserMapping';
+use Foswiki::Users::TopicUserMapping;
+our @ISA = qw( Foswiki::Users::TopicUserMapping );
 
 use vars qw($isLoadedMapping);
 
