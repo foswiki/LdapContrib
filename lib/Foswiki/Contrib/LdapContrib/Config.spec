@@ -107,6 +107,11 @@ $Foswiki::cfg{Ldap}{UserScope} = 'sub';
 $Foswiki::cfg{Ldap}{LoginAttribute} = 'uid';
 
 # **STRING**
+# The user mail attribute. This is the attribute name used to fetch
+# users e-mail.
+$Foswiki::cfg{Ldap}{MailAttribute} = 'mail';
+
+# **STRING**
 # The user's wiki name attribute. This is the attribute to generate
 # the WikiName from. 
 $Foswiki::cfg{Ldap}{WikiNameAttribute} = 'cn';
