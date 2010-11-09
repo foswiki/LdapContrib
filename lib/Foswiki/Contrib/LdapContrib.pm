@@ -18,13 +18,16 @@
 package Foswiki::Contrib::LdapContrib;
 
 use strict;
+use Net::LDAP;
 use Net::LDAP::Constant qw(LDAP_SUCCESS LDAP_SIZELIMIT_EXCEEDED LDAP_CONTROL_PAGED);
+use Net::LDAP::Extension::SetPassword;
 use DB_File;
+
 
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev: 4426 (2009-07-03) $';
-$RELEASE = 'v4.00';
+$RELEASE = '4.10';
 
 =pod
 
@@ -234,11 +237,12 @@ sub new {
   # normalize normalization flags
   $this->{normalizeWikiName} = $Foswiki::cfg{Ldap}{NormalizeWikiName} 
     unless defined $this->{normalizeWikiName};
+  $this->{normalizeWikiName} = 1 
+    unless defined $this->{normalizeWikiName};
   $this->{normalizeLoginName} = $Foswiki::cfg{Ldap}{NormalizeLoginName} 
     unless defined $this->{normalizeLoginName};
   $this->{normalizeGroupName} = $Foswiki::cfg{Ldap}{NormalizeGroupName} 
     unless defined $this->{normalizeGroupName};
-  $this->{normalizeWikiName} = 1 unless defined $this->{normalizeWikiName};
 
   @{$this->{wikiNameAttributes}} = split(/\s*,\s*/, $this->{wikiNameAttribute});
 
@@ -328,11 +332,7 @@ sub connect {
     $this->{ldap}->start_tls(%args);
   }
 
-  if ($passwd) {
-    require Unicode::MapUTF8;
-    $passwd = Unicode::MapUTF8::to_utf8(-string=>$passwd, -charset=>$Foswiki::cfg{Site}{CharSet})
-      unless $Foswiki::cfg{Site}{CharSet} =~ /^utf-?8$/i;
-  }
+  $passwd = $this->toUtf8($passwd) if $passwd;
 
   # authenticated bind
   my $msg;
@@ -473,8 +473,6 @@ sub getAccount {
   writeDebug("called getAccount($login)");
   return undef if $this->{excludeMap}{$login};
 
-  $login = lc($login);
-
   my $loginFilter = $this->{loginFilter};
   $loginFilter = "($loginFilter)" unless $loginFilter =~ /^\(.*\)$/;
   my $filter = '(&'.$loginFilter.'('.$this->{loginAttribute}.'='.$login.'))';
@@ -483,12 +481,12 @@ sub getAccount {
     base=>$this->{userBase}
   );
   unless ($msg) {
-    #writeDebug("no such account");
+    writeDebug("no such account");
     return undef;
   }
   if ($msg->count() != 1) {
     $this->{error} = 'Login invalid';
-    #writeDebug($this->{error});
+    writeDebug($this->{error});
     return undef;
   }
 
@@ -524,10 +522,7 @@ sub search {
   $args{scope} = 'sub' unless $args{scope};
   $args{limit} = 0 unless $args{limit};
   $args{attrs} = ['*'] unless $args{attrs};
-
-  require Unicode::MapUTF8;
-  $args{filter} = Unicode::MapUTF8::to_utf8(-string=> $args{filter}, -charset=>$Foswiki::cfg{Site}{CharSet})
-    if $args{filter} && $Foswiki::cfg{Site}{CharSet} !~ /^utf-?8$/i;
+  $args{filter} = $this->toUtf8($args{filter}) if $args{filter};
 
   if ($Foswiki::cfg{Ldap}{Debug}) {
     my $attrString = join(',', @{$args{attrs}});
@@ -632,7 +627,8 @@ sub initCache {
     or die "Cannot open file $this->{cacheFile}: $!";
 
   # refresh by user interaction
-  my $refresh = CGI::param('refreshldap') || '';
+  my $refresh = '';
+  $refresh = CGI::param('refreshldap') || '';
   $refresh = $refresh eq 'on'?1:0;
   writeDebug("refreshing cache explicitly") if $refresh;
 
@@ -657,8 +653,10 @@ sub initCache {
 
   # clear to reload it
   if ($refresh) {
+    writeWarning("updating cache");
     writeDebug("updating cache");
     $this->refreshCache();
+    writeWarning("updating cache done");
     writeDebug("updating cache done");
   }
 }
@@ -779,7 +777,7 @@ sub refreshUsersCache {
     my $mesg = $this->search(@args);
     unless ($mesg) {
       #writeDebug("oops, no result");
-      writeWarning("error refeshing the user cache: ".$this->getError());
+      writeWarning("error refreshing the user cache: ".$this->getError());
       $gotError = 1;
       last;
     }
@@ -1016,13 +1014,15 @@ returns true if new records have been created
 sub cacheUserFromEntry {
   my ($this, $entry, $data, $wikiNames, $loginNames, $wikiName) = @_;
 
-  writeDebug("called cacheUserFromEntry()");
+  #writeDebug("called cacheUserFromEntry()");
 
   $data ||= $this->{data};
   $wikiNames ||= {};
   $loginNames ||= {};
 
   my $dn = $entry->dn();
+
+  # 1. get it
   my $loginName = $entry->get_value($this->{loginAttribute});
   $loginName =~ s/^\s+//o;
   $loginName =~ s/\s+$//o;
@@ -1030,12 +1030,9 @@ sub cacheUserFromEntry {
     #writeDebug("no loginName for $dn ... skipping");
     return 0;
   }
+  $loginName = $this->fromUtf8($loginName);
 
-  require Unicode::MapUTF8;
-  $loginName = lc($loginName);
-  $loginName = Unicode::MapUTF8::from_utf8(-string=>$loginName, -charset=>$Foswiki::cfg{Site}{CharSet})
-    unless $Foswiki::cfg{Site}{CharSet} =~ /^utf-?8$/i;
-
+  # 2. normalize
   if ($this->{normalizeLoginName}) {
     $loginName = $this->normalizeLoginName($loginName);
   }
@@ -1045,17 +1042,15 @@ sub cacheUserFromEntry {
   if ($wikiName) {
     writeWarning("found explicit wikiName '$wikiName' for $dn");
   } else {
+
+    # 1. get it
     foreach my $attr (@{$this->{wikiNameAttributes}}) {
       my $value = $entry->get_value($attr);
       next unless $value;
       $value =~ s/^\s+//o;
       $value =~ s/\s+$//o;
-
-      $value = Unicode::MapUTF8::from_utf8(-string=>$value, -charset=>$Foswiki::cfg{Site}{CharSet})
-        unless $Foswiki::cfg{Site}{CharSet} =~ /^utf-?8$/i;
-
-      writeDebug("$attr=$value");
-
+      $value = $this->fromUtf8($value);
+      #writeDebug("$attr=$value");
       $wikiName .= " ".$value;
     }
 
@@ -1064,7 +1059,7 @@ sub cacheUserFromEntry {
       writeWarning("no WikiNameAttributes found for $dn ... deriving WikiName from LoginName: '$wikiName'");
     }
 
-    # apply wikiname rewrites
+    # 2. rewrite
     my $oldWikiName = $wikiName;
     foreach my $pattern (keys %{$this->{rewriteWikiNames}}) {
       my $subst = $this->{rewriteWikiNames}{$pattern};
@@ -1085,8 +1080,10 @@ sub cacheUserFromEntry {
       }
     }
 
-    # now we normalize it
-    $wikiName = $this->normalizeWikiName($wikiName);
+    # 3. normalize
+    if ($this->{normalizeWikiName}) {
+      $wikiName = $this->normalizeWikiName($wikiName);
+    }
   }
 
   # aliasing it
@@ -1109,7 +1106,7 @@ sub cacheUserFromEntry {
   }
 
   # is there an old mapping where this dn was matched to a different wikiName?
-  if ($this->{data} && $this->{data}{"U2DN::$loginName"} ne $dn) {
+  if ($this->{data} && $this->{data}{"U2DN::$loginName"} && $this->{data}{"U2DN::$loginName"} ne $dn) {
     writeWarning("different $dn on old loginName '$loginName'");
     # what to do?
   }
@@ -1132,7 +1129,7 @@ sub cacheUserFromEntry {
   }
 
   # store it
-  #writeDebug("adding wikiName='$wikiName', loginName='$loginName', dn='$dn'");
+  writeDebug("adding wikiName='$wikiName', loginName='$loginName', dn='$dn'");
   $data->{"U2W::$loginName"} = $wikiName;
   $data->{"W2U::$wikiName"} = $loginName;
   $data->{"DN2U::$dn"} = $loginName;
@@ -1203,10 +1200,7 @@ sub cacheGroupFromEntry {
   }
   $groupName =~ s/^\s+//o;
   $groupName =~ s/\s+$//o;
-
-  require Unicode::MapUTF8;
-  $groupName = Unicode::MapUTF8::from_utf8(-string=>$groupName, -charset=>$Foswiki::cfg{Site}{CharSet})
-    unless $Foswiki::cfg{Site}{CharSet} =~ /^utf-?8$/i;
+  $groupName = $this->fromUtf8($groupName);
 
   if ($this->{normalizeGroupName}) {
     $groupName = $this->normalizeWikiName($groupName);
@@ -1298,14 +1292,21 @@ normalizes a string to form a proper <nop>WikiName
 sub normalizeWikiName {
   my ($this, $name) = @_;
 
-  # remove a trailing mail domain
-  # SMELL: you may have a different attribute name for the email address
-  $name =~ s/@.*//o;
   $name = transliterate($name);
 
   my $wikiName = '';
+
+  # first, try without forcing each part to be lowercase 
   foreach my $part (split(/[^$Foswiki::regex{mixedAlphaNum}]/, $name)) {
-    $wikiName .= ucfirst(lc($part));
+    $wikiName .= ucfirst($part);
+  }
+
+  # if it isn't a valid WikiWord and there's no homepage of that name yet, then try more agressively to 
+  # create a proper WikiName
+  if (!Foswiki::Func::isValidWikiWord($wikiName) && !Foswiki::Func::topicExists($Foswiki::cfg{UsersWebName}, $wikiName)) {
+    foreach my $part (split(/[^$Foswiki::regex{mixedAlphaNum}]/, $name)) {
+      $wikiName .= ucfirst(lc($part));
+    }
   }
 
   return $wikiName;
@@ -1322,9 +1323,6 @@ normalizes a string to form a proper login
 sub normalizeLoginName {
   my ($this, $name) = @_;
 
-  # remove a trailing mail domain
-  # SMELL: you may have a different attribute name for the email address
-  $name =~ s/@.*//o;
   $name = transliterate($name);
   $name =~ s/[^$Foswiki::cfg{LoginNameFilterIn}]//;
 
@@ -1580,7 +1578,7 @@ sub getEmails {
     $this->checkCacheForLoginName($login, $data);
   }
 
-  my $emails = Foswiki::Sandbox::untaintUnchecked($data->{"U2EMAIL::".lc($login)}) || '';
+  my $emails = Foswiki::Sandbox::untaintUnchecked($data->{"U2EMAIL::".$login}) || '';
   my @emails = split(/\s*,\s*/,$emails);
   return \@emails;
 }
@@ -1667,8 +1665,6 @@ sub getWikiNameOfLogin {
 
   $data ||= $this->{data};
 
-  $loginName = lc($loginName);
-
   unless ($this->{preCache}) {
     # Make sure the user has been retreived from LDAP
     $this->checkCacheForLoginName($loginName, $data);
@@ -1747,7 +1743,6 @@ returns the Distinguished Name of the LDAP record of the given name
 sub getDnOfLogin {
   my ($this, $loginName, $data) = @_;
 
-  $loginName = lc($loginName);
   $data ||= $this->{data};
 
   return Foswiki::Sandbox::untaintUnchecked($data->{"U2DN::$loginName"});
@@ -1770,8 +1765,9 @@ sub changePassword {
 
   return undef unless $this->connect($dn, $oldPassword);
 
-  my $msg = $this->{ldap}->modify( $dn, 
-    replace => { 'userPassword' => $newPassword } 
+  my $msg = $this->{ldap}->set_password(
+    oldpasswd => $oldPassword, 
+    newpasswd => $newPassword
   );
 
   my $errorCode = $this->checkError($msg);
@@ -1804,8 +1800,7 @@ sub checkCacheForLoginName {
   
   return 0 unless($loginName);
 
-
-  #writeDebug("called checkCacheForLoginName($loginName)");
+  writeDebug("called checkCacheForLoginName($loginName)");
 
   $data ||= $this->{data};
 
@@ -2116,7 +2111,7 @@ search using $ldap->{groupFilter} in the subtree defined by $ldap->{groupBase}.
 sub getGroup {
   my ($this, $groupName) = @_;
 
-  writeDebug("called getGroup($groupName)");
+  #writeDebug("called getGroup($groupName)");
   return undef if $this->{excludeMap}{$groupName};
 
   my $filter = '(&(' . $this->{groupFilter} . ')(' . $this->{groupAttribute} . '=' . $groupName . '))';
@@ -2138,6 +2133,92 @@ sub getGroup {
   }
 
   return $msg->entry(0);
+}
+
+=pod
+
+---++++ fromUtf8($string) -> $string
+
+Wrapper to use Unicode::MapUTF8 for Perl < 5.008
+and Encode for later versions.
+[adopted from I18N.pm]
+
+=cut
+
+sub fromUtf8 {
+  my ($this, $utf8string) = @_;
+
+  my $charset = $Foswiki::cfg{Site}{CharSet};
+  return $utf8string if $charset =~ /^utf-?8$/i;
+
+  if ($] < 5.008) {
+
+    # use Unicode::MapUTF8 for Perl older than 5.8
+    require Unicode::MapUTF8;
+    if (Unicode::MapUTF8::utf8_supported_charset($charset)) {
+      return Unicode::MapUTF8::from_utf8({ -string => $utf8string, -charset => $charset });
+    } else {
+      $this->writeWarning('Conversion from $encoding no supported, ' . 'or name not recognised - check perldoc Unicode::MapUTF8');
+      return $utf8string;
+    }
+  } else {
+
+    # good Perl version, just use Encode
+    require Encode;
+    import Encode;
+    my $encoding = Encode::resolve_alias($charset);
+    if (not $encoding) {
+      $this->writeWarning('Conversion to "' . $charset . '" not supported, or name not recognised - check ' . '"perldoc Encode::Supported"');
+      return $utf8string;
+    } else {
+
+      # converts to $charset, generating HTML NCR's when needed
+      my $octets = Encode::decode('utf-8', $utf8string);
+      return Encode::encode($encoding, $octets, &Encode::FB_HTMLCREF());
+    }
+  }
+}
+
+=begin text
+
+---++++ toUtf8($string) -> $utf8string
+
+Wrapper to use Unicode::MapUTF8 for Perl < 5.008
+and Encode for later versions.
+[adopted from I18N.pm]
+
+=cut
+
+sub toUtf8 {
+  my ($this, $string) = @_;
+
+  my $charset = $Foswiki::cfg{Site}{CharSet};
+  return $string if $charset =~ /^utf-?8$/i;
+
+  if ($] < 5.008) {
+
+    # use Unicode::MapUTF8 for Perl older than 5.8
+    require Unicode::MapUTF8;
+    if (Unicode::MapUTF8::utf8_supported_charset($charset)) {
+      return Unicode::MapUTF8::to_utf8({ -string => $string, -charset => $charset });
+    } else {
+      $this->writeWarning('Conversion from $encoding no supported, ' . 'or name not recognised - check perldoc Unicode::MapUTF8');
+      return $string;
+    }
+  } else {
+
+    # good Perl version, just use Encode
+    require Encode;
+    import Encode;
+    my $encoding = Encode::resolve_alias($charset);
+    if (not $encoding) {
+      $this->writeWarning('Conversion to "' . $charset . '" not supported, or name not recognised - check ' . '"perldoc Encode::Supported"');
+      return undef;
+    } else {
+      my $octets = Encode::decode($encoding, $string, &Encode::FB_PERLQQ());
+      return Encode::encode('utf-8', $octets);
+    }
+  }
 }
 
 1;

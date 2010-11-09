@@ -39,17 +39,22 @@ You can also disable automatic refreshing and refresh the <nop>LdapContrib's cac
 the "Refresh Cache" button below. Read the documentation of =MaxCacheAge= in the section
 "Performance Settings" in <a href="%SCRIPTURLPATH{"configure"}%">configure</a>.
 
-<center>
-<form action="%SCRIPTURLPATH{"view"}%/%BASEWEB%/%BASETOPIC%">
-<input type="hidden" name="refreshldap" value="on" />
-<input type="hidden" name="refresh" value="on" />
-<input type="submit" value="Refresh Cache" style="color:red" />
-</form>
-</center>
+%STARTSECTION{"refreshbutton"}%<!-- -->
+%BUTTON{
+  "%MAKETEXT{"%IF{
+    "defined label" 
+    then="%label%" 
+    else="Refresh Cache"}%"
+  }%" 
+  icon="arrow_refresh" 
+  href="%SCRIPTURLPATH{"view"}%/%BASEWEB%/%BASETOPIC%?refreshldap=on"
+}%
+<!-- -->%ENDSECTION{"refreshbutton"}%
+%CLEAR%
 
 Tip: You can add this button on any page by adding
 <verbatim>
-%INCLUDE{"%SYSTEMWEB%.LdapContrib"}%
+%INCLUDE{"%SYSTEMWEB%.LdapContrib" section="refreshbutton"}%
 </verbatim>
 to it.
 
@@ -166,10 +171,8 @@ $Foswiki::cfg{Ldap}{WikiNameAttribute} = 'givenName,sn';
 $Foswiki::cfg{Ldap}{NormalizeWikiNames} = 1;
 </verbatim>
 The =givenName= and =sn= (surname) LDAP attributes will be fetched and concatenated
-to form a <nop>WikiName, so that "givenName=Hans-Peter,sn=Leuth¿user-Schnarrenberg" will
-result in the <nop>WikiName "<nop>HansPeterLeuthaeuserSchnarrenberg".
-If one of the <nop>WikiNameAttributes is 'mail' the =@mydomain.com= part will be removed
-all together.
+to form a proper <nop>WikiName, so that "givenName=Hans-Peter,sn=Schwarze" will
+result in the <nop>WikiName "<nop>HansPeterSchwarze".
 
 The login name can be normalized by enabling the
 <verbatim>$Foswiki::cfg{Ldap}{NormalizeLoginNames} = 1;</verbatim>
@@ -191,13 +194,41 @@ names as stored in your LDAP directory don't satisfy your criteria for being dis
 online. In conjunction with the <nop>MergeGroups flag, separate LDAP groups can be
 merged onto one group as it is used online in your wiki.
 
-A group rewrite rules has the form <pre>'pattern' => 'substitute'</pre>
-consists of a name pattern that has to match the group name to be rewritten
-and a substitute value that is used to replace the matched pattern. The
-substitute might contain $1, $2, ... , $5 to insert the first, second, ..., fifth
+A group rewrite rule is specified using
+<verbatim>
+$Foswiki::cfg{Ldap}{RewriteGroups} = {
+  'pattern1' => 'substitution1',
+  'pattern2' => 'substitution2',
+  ...
+};
+</verbatim>
+Each rule consists of a pattern that will be substituted in the group name as specified.
+The substitute can contain variables =$1=, =$2=, ... , =$5= to insert the first, second, ..., fifth
 bracket pair in the key pattern. (see perl manual for regular expressions).
-Example: '(.*)_users' => '$1'
+Example: 
+<verbatim>
+$Foswiki::cfg{Ldap}{RewriteGroups} = {
+  '(.*)_users' => '$1'
+};
+</verbatim>
 
+!WikiNames can be processed similarly using the =$Foswiki::cfg{Ldap}{RewriteWikiNames}= 
+parameter. Given the !WikiName is derived from the mail attribute, then use the following 
+rule to strip off domain parts from the wiki name:
+<verbatim>
+$Foswiki::cfg{Ldap}{RewriteWikiNames} = {
+  '^(.*)@.*$' => '$1'
+};
+</verbatim>
+This can be further refined to prevent name clashes by adding back the domain part:
+<verbatim>
+$Foswiki::cfg{Ldap}{RewriteWikiNames} = {
+  '^(.*)@(.*?)\..*\..*$' => '$1_$2'
+};
+</verbatim>
+So given your company uses email addresses like <nop>john.doe@germany.mycompany.com
+and <nop>john.doe@spain.mycompany.com it will generate the wiki names <nop>JohnDoeGermany
+and <nop>JohnDoeSpain from it (given <nop>NormalizeWikiNames is switched on too).
 
 ---++ SSO and <nop>LdapContrib
 First of all, <nop>LdapContrib does not provide any SSO solution. Nor does LDAP
@@ -359,6 +390,13 @@ This work was partly sponsored by
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  09 Nov 2010: | removed every lowercasing of login names; \
+                  added docu and better defaults for =RewriteWikiNames= |
+|  17 Sep 2010: | fixed build script; \
+                  removed hardcoded normalization that stripped off domain parts from login and wiki names; \
+                  fixed utf8 transcoding for modern perls; \
+                  be more careful when translation of !WikiNameAttributes to proper !WikiNames checking existing homepages; \
+                  implemented =groupAllowsChange()= for modern Foswikis |
 |  17 Nov 2009: | incremental cache updates for _big_ ldap directories and inner groups feature (Cyril Bousquet, IBM); \
                   added scope parameter searching for users and groups; \
                   added rewrite rules for wiki names; \

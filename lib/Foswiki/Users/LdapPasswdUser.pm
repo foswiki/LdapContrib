@@ -208,7 +208,10 @@ we can change passwords, so return false
 =cut
 
 sub readOnly {
-  return 0;
+  my $this = shift;
+
+  return $this->{secondaryPasswordManager}->readOnly()
+    if $this->{secondaryPasswordManager};
 }
 
 =pod

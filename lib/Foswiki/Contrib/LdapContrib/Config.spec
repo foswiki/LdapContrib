@@ -235,8 +235,8 @@ $Foswiki::cfg{Ldap}{RewriteGroups} = {
 # bracket pair in the key pattern. (see perl manual for regular expressions).
 # Example: '(.*)_users' => '$1'
 $Foswiki::cfg{Ldap}{RewriteWikiNames} = {
+  '^(.*)@.*$' => '$1'
 };
-
 
 # **BOOLEAN**
 # Flag indicating if groups that get the same are merged. For exmaple, given two 

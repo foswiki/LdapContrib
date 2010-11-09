@@ -1,21 +1,18 @@
 #!/usr/bin/perl -w
+#
+# Build for NatSkin
+#
 BEGIN {
-  foreach my $pc (split(/:/, $ENV{TWIKI_LIBS})) {
+  foreach my $pc (split(/:/, $ENV{FOSWIKI_LIBS})) {
     unshift @INC, $pc;
   }
 }
 
 use Foswiki::Contrib::Build;
 
-package DBCacheBuild;
+# Create the build object
+$build = new Foswiki::Contrib::Build( 'LdapContrib' );
 
-@DBCacheBuild::ISA = ( "Foswiki::Contrib::Build" );
-
-sub new {
-  my $class = shift;
-  return bless( $class->SUPER::new( "LdapContrib" ), $class );
-}
-
-$build = new DBCacheBuild();
-
+# Build the target on the command line, or the default target
 $build->build($build->{target});
+

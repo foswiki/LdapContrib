@@ -540,5 +540,29 @@ sub login2cUID {
   return $cUID;
 }
 
+=pod
+
+---++++ groupAllowsChange($group, $cuid) -> boolean
+
+normally, ldap-groups are read-only as they are maintained
+using ldap-specific tools.
+
+this method only returns 1 if the group is a topic-based group
+
+=cut
+
+sub groupAllowsChange {
+  my ($this, $group, $cuid) = @_;
+
+  my ($groupWeb, $groupName) = 
+    $this->{session}->normalizeWebTopicName($Foswiki::cfg{UsersWebName}, $group);
+
+  return $this->SUPER::groupAllowsChange($group, $cuid)
+    if $this->{session}->topicExists($groupWeb, $groupName);
+
+  return 0;
+}
+
+
 
 1;

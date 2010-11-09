@@ -39,12 +39,18 @@ sub loadSession {
   # from LDAP are tainted, even if they come via mod_ldap
   $authUser = Foswiki::Sandbox::untaintUnchecked($authUser);
 
-  # remove kerberos realm
-  $authUser =~ s/\@.*$//g if defined $authUser;
+  # process authUser login name
+  if (defined $authUser) {
 
+    #print STDERR "befoer authUser=$authUser\n";
 
-  if (defined $authUser && !$this->{ldap}{excludeMap}{$authUser}) {
-    $this->{ldap}->checkCacheForLoginName($authUser);
+    $authUser =~ s/^\s*(.*?)\s*$/$1/g; # need to chop spaces ... buggy CGI?
+
+    #print STDERR "after authUser=$authUser\n";
+
+    if (!$this->{ldap}{excludeMap}{$authUser}) {
+      $this->{ldap}->checkCacheForLoginName($authUser);
+    }
   }
 
   return $authUser;
