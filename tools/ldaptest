@@ -1,0 +1,51 @@
+#!/usr/bin/perl -w
+use Net::LDAP;
+
+# usage: ldaptet 'ldap-query'
+
+## PLEASE MODIFIY #############################################
+
+# server name or IP address
+my $server = 'localhost';
+
+# dn from where searches are performed recursively
+my $baseDN = 'dc=nodomain';
+
+# username and credentials used to connect to the LDAP server;
+# if unset an anonymous connect will be used
+# CAUTION: when typing in a password, this is plain text. 
+# please make sure that this file is only readable for authorized personell
+my $bindUser = ''; 
+my $bindPassword = '';
+
+# maximum number of records returned
+my $sizeLimit = 10;
+
+###############################################################
+
+my $filter = $ARGV[0] || '(objectClass=*)';
+
+my $ldap = Net::LDAP->new($server) || die "$@";
+
+my $mesg;
+if ($bindUser) {
+  $mesg = $ldap->bind($bindUser, password=>$bindPassword);
+} else {
+  $mesg = $ldap->bind();
+}
+my $code = $mesg->code;
+$code && die "$code: ".$mesg->error;
+$mesg = $ldap->search(
+  filter=>$filter,
+  base=>$baseDN,
+  sizelimit=>$sizeLimit,
+);
+$code = $mesg->code;
+if ($code && $code != 4) {
+  die "$code: ".$mesg->error;
+}
+
+my @entries = $mesg->entries;
+foreach $entry (@entries) {
+  $entry->dump;
+}

@@ -5,3 +5,4 @@ lib/Foswiki/LoginManager/LdapApacheLogin.pm 0644
 lib/Foswiki/Users/LdapPasswdUser.pm 0644
 lib/Foswiki/Users/LdapUserMapping.pm 0644
 pub/System/LdapContrib/wikiringlogo40x40.png 0644
+tools/ldaptest 0755

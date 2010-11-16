@@ -27,7 +27,7 @@ use DB_File;
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev: 4426 (2009-07-03) $';
-$RELEASE = '4.10';
+$RELEASE = '4.11';
 
 =pod
 
@@ -215,7 +215,7 @@ sub new {
   $this->{preCache} = 1 unless defined $this->{preCache};
 
   if ($this->{useSASL}) {
-    #writeDebug("will use SASL authentication");
+    writeDebug("will use SASL authentication");
     require Authen::SASL;
   }
 
@@ -339,7 +339,7 @@ sub connect {
   if (defined($dn)) {
     die "illegal call to connect()" unless defined($passwd);
     $msg = $this->{ldap}->bind($dn, password=>$passwd);
-    #writeDebug("bind for $dn");
+    writeDebug("bind for $dn");
   } 
 
   # proxy user 
@@ -354,18 +354,18 @@ sub connect {
           pass => $this->{bindPassword},
         },
       );
-      #writeDebug("sasl bind to $this->{bindDN}");
+      writeDebug("sasl bind to $this->{bindDN}");
       $msg = $this->{ldap}->bind($this->{bindDN}, sasl=>$sasl, version=>$this->{version} );
     } else {
       # simple bind
-      #writeDebug("proxy bind");
+      writeDebug("proxy bind");
       $msg = $this->{ldap}->bind($this->{bindDN},password=>$this->{bindPassword});
     }
   }
   
   # anonymous bind
   else {
-    #writeDebug("anonymous bind");
+    writeDebug("anonymous bind");
     $msg = $this->{ldap}->bind;
   }
 
@@ -388,7 +388,7 @@ sub disconnect {
 
   return unless defined($this->{ldap}) && $this->{isConnected};
 
-  #writeDebug("called disconnect()");
+  writeDebug("called disconnect()");
   $this->{ldap}->unbind();
   $this->{ldap} = undef;
   $this->{isConnected} = 0;
@@ -408,7 +408,7 @@ sub finish {
   return if $this->{isFinished};
   $this->{isFinished} = 1;
 
-  #writeDebug("finishing");
+  writeDebug("finishing");
   $this->disconnect();
   delete $sharedLdapContrib{$this->{session}};
   undef $this->{cacheDB};
@@ -618,10 +618,10 @@ sub initCache {
   return unless $Foswiki::cfg{UserMappingManager} =~ /LdapUserMapping/ ||
                 $Foswiki::cfg{PasswordManager} =~ /LdapPasswdUser/;
 
-  #writeDebug("called initCache");
+  writeDebug("called initCache");
 
   # open database
-  #writeDebug("opening ldap cache from $this->{cacheFile}");
+  writeDebug("opening ldap cache from $this->{cacheFile}");
   $this->{cacheDB} = 
     tie %{$this->{data}}, 'DB_File', $this->{cacheFile}, O_CREAT|O_RDWR, 0664, $DB_HASH
     or die "Cannot open file $this->{cacheFile}: $!";
@@ -643,7 +643,7 @@ sub initCache {
     # don't refresh within 60 seconds
     if ($cacheAge < 10) {
       $refresh = 0;
-      #writeDebug("suppressing cache refresh within 10 seconds");
+      writeDebug("suppressing cache refresh within 10 seconds");
     } else {
       $refresh = 1 if $cacheAge > $this->{maxCacheAge}
     }
@@ -673,7 +673,7 @@ store it into a database
 sub refreshCache {
   my ($this) = @_;
 
-  #writeDebug("called refreshCache");
+  writeDebug("called refreshCache");
 
   # create a temporary tie
   my $tempCacheFile = $this->{cacheFile}.'_tmp';
@@ -690,7 +690,7 @@ sub refreshCache {
   # precache the LDAP directory if enabled in configuration file
   # writeDebug("Config:" . $this->{preCache});
   if ($this->{preCache}) {
-    #writeDebug("precaching is ON.");
+    writeDebug("precaching is ON.");
     my $isOk = $this->refreshUsersCache(\%tempData);
 
     if ($isOk && $this->{mapGroups}) {
@@ -705,7 +705,7 @@ sub refreshCache {
     }
   }
 
-  #writeDebug("flushing db to disk");
+  writeDebug("flushing db to disk");
   $tempData{lastUpdate} = time();
   $tempCache->sync();
   undef $tempCache;
@@ -715,7 +715,7 @@ sub refreshCache {
   undef $this->{cacheDB};
   untie %{$this->{data}};
 
-  #writeDebug("replacing working copy");
+  writeDebug("replacing working copy");
   rename $tempCacheFile,$this->{cacheFile};
 
   # reconnect hash
@@ -740,7 +740,7 @@ returns true if new records have been loaded
 sub refreshUsersCache {
   my ($this, $data) = @_;
 
-  #writeDebug("called refreshUsersCache()");
+  writeDebug("called refreshUsersCache()");
   $data ||= $this->{data};
 
   # prepare search
@@ -776,7 +776,7 @@ sub refreshUsersCache {
     # perform search
     my $mesg = $this->search(@args);
     unless ($mesg) {
-      #writeDebug("oops, no result");
+      writeDebug("oops, no result");
       writeWarning("error refreshing the user cache: ".$this->getError());
       $gotError = 1;
       last;
@@ -803,7 +803,7 @@ sub refreshUsersCache {
       }
     }
   } # end reading pages
-  #writeDebug("done reading pages");
+  writeDebug("done reading pages");
 
   # clean up
   if ($cookie) {
@@ -822,7 +822,7 @@ sub refreshUsersCache {
   $data->{WIKINAMES} = join(',', keys %wikiNames);
   $data->{LOGINNAMES} = join(',', keys %loginNames);
 
-  #writeDebug("got $nrRecords keys in cache");
+  writeDebug("got $nrRecords keys in cache");
 
   return 1;
 }
@@ -958,7 +958,7 @@ sub refreshGroupsCache {
       my $groupName = $this->{_groupId}{$groupId};
       next unless $groupName;
       foreach my $member (keys %{$this->{_primaryGroup}{$groupId}}) {
-        #writeDebug("adding $member to its primary group $groupName");
+        writeDebug("adding $member to its primary group $groupName");
         $this->{_groups}{$groupName}{$member} = 1;
       }
     }
@@ -973,12 +973,12 @@ sub refreshGroupsCache {
       # groups may store DNs to members instead of a memberUid, in this case we
       # have to lookup the corresponding loginAttribute
       if ($this->{memberIndirection}) {
-        #writeDebug("following indirection for $member");
+        writeDebug("following indirection for $member");
         my $memberName = $data->{"DN2U::$member"};
         if ($memberName) {
           $members{$memberName} = 1;
         } else {
-          #writeDebug("oops, $member not found, but member of $groupName");
+          writeDebug("oops, $member not found, but member of $groupName");
         } 
       } else {
         $members{$member} = 1;
@@ -993,7 +993,7 @@ sub refreshGroupsCache {
   # remember list of all groups
   $data->{GROUPS} = join(',', sort keys %groupNames);
 
-  #writeDebug("got $nrRecords keys in cache");
+  writeDebug("got $nrRecords keys in cache");
 
   return 1;
 }
@@ -1014,7 +1014,7 @@ returns true if new records have been created
 sub cacheUserFromEntry {
   my ($this, $entry, $data, $wikiNames, $loginNames, $wikiName) = @_;
 
-  #writeDebug("called cacheUserFromEntry()");
+  writeDebug("called cacheUserFromEntry()");
 
   $data ||= $this->{data};
   $wikiNames ||= {};
@@ -1027,7 +1027,7 @@ sub cacheUserFromEntry {
   $loginName =~ s/^\s+//o;
   $loginName =~ s/\s+$//o;
   unless ($loginName) {
-    #writeDebug("no loginName for $dn ... skipping");
+    writeDebug("no loginName for $dn ... skipping");
     return 0;
   }
   $loginName = $this->fromUtf8($loginName);
@@ -1162,7 +1162,7 @@ sub cacheUserFromEntry {
         foreach my $memberDn (@membersDn) {
           if ($memberDn eq $dn) {
 
-            #writeDebug("Refreshing group $groupName to catch new members");
+            writeDebug("Refreshing group $groupName to catch new members");
             removeGroupFromCache($this, $groupName, $data);
             checkCacheForGroupName($this, $groupName, $data);
             last LOOP;
@@ -1191,11 +1191,11 @@ sub cacheGroupFromEntry {
   $groupNames ||= {};
 
   my $dn = $entry->dn();
-  #writeDebug("caching group for $dn");
+  writeDebug("caching group for $dn");
 
   my $groupName = $entry->get_value($this->{groupAttribute});
   unless ($groupName) {
-    #writeDebug("no groupName for $dn ... skipping");
+    writeDebug("no groupName for $dn ... skipping");
     return 0;
   }
   $groupName =~ s/^\s+//o;
@@ -1274,7 +1274,7 @@ sub cacheGroupFromEntry {
 
 
   # store it
-  #writeDebug("adding groupName='$groupName', dn=$dn");
+  writeDebug("adding groupName='$groupName', dn=$dn");
 
   $groupNames->{$groupName} = 1;
 
@@ -1816,12 +1816,12 @@ sub checkCacheForLoginName {
   }
 
   # update cache selectively
-  #writeDebug("warning, $loginName is unknown, need to refresh part of the ldap cache");
+  writeDebug("$loginName is unknown, need to refresh part of the ldap cache");
  
   my $entry = $this->getAccount($loginName);
 
   unless ($entry) {
-    #writeDebug("oops, no result looking for user $loginName in LDAP");
+    writeDebug("oops, no result looking for user $loginName in LDAP");
     $this->addIgnoredUser($loginName, $data);
   } else {
     # merge this user record
@@ -2011,12 +2011,12 @@ sub checkCacheForGroupName {
   }
 
   # update cache selectively
-  #writeDebug("warning, group $groupName is unknown, need to refresh part of the ldap cache");
+  writeDebug("group $groupName is unknown, need to refresh part of the ldap cache");
 
   my $entry = $this->getGroup($groupName);
   unless ($entry) {
 
-    #writeDebug("oops, no result looking for group $groupName in LDAP");
+    writeDebug("oops, no result looking for group $groupName in LDAP");
     $this->addIgnoredGroup($groupName, $data);
     return 0;
   } else {
@@ -2037,7 +2037,7 @@ sub checkCacheForGroupName {
         if (defined $currentGroupName && $groupName eq $currentGroupName) {
           foreach my $member (keys %{ $this->{_primaryGroup}{$groupId} }) {
 
-            #writeDebug("adding $member to its primary group $currentGroupName");
+            writeDebug("adding $member to its primary group $currentGroupName");
             $this->{_groups}{$currentGroupName}{$member} = 1;
           }
         }
@@ -2054,7 +2054,7 @@ sub checkCacheForGroupName {
       # have to lookup the corresponding loginAttribute
       if ($this->{memberIndirection}) {
 
-        #writeDebug("following indirection for $member");
+        writeDebug("following indirection for $member");
 
         my $memberName = $data->{"DN2U::$member"};
         if ($memberName) {
@@ -2076,7 +2076,7 @@ sub checkCacheForGroupName {
             }
           }
 
-          #writeDebug("oops, $member not found, but member of $groupName");
+          writeDebug("oops, $member not found, but member of $groupName");
           $uncachedMembersDn{$member} = 1;
         }
       } else {
