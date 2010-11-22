@@ -403,11 +403,12 @@ This work was partly sponsored by
    * [[http://www.testo.de][Testo]]
 
 |  Author: | Michael Daum |
-|  Copyright&nbsp;&copy;: | 2006-2009 Michael Daum http://michaeldaumconsulting.com |
+|  Copyright&nbsp;&copy;: | 2006-2010 Michael Daum http://michaeldaumconsulting.com |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  22 Nov 2010: | fixed removing realm from login again; improved clash report message |
 |  16 Nov 2010: | added tool to debug ldap server connection and structure |
 |  09 Nov 2010: | removed every lowercasing of login names; \
                   added docu and better defaults for =RewriteWikiNames= |
