@@ -23,6 +23,7 @@ use Net::LDAP::Constant qw(LDAP_SUCCESS LDAP_SIZELIMIT_EXCEEDED LDAP_CONTROL_PAG
 use Net::LDAP::Extension::SetPassword;
 use DB_File;
 
+use Foswiki::Func ();
 
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
@@ -257,7 +258,6 @@ sub new {
       $aliasMap{$1} = $2;
     }
   }
-
   $this->{wikiNameAliases} = \%aliasMap;
 
   # default value for cache expiration is every 24h
@@ -853,11 +853,15 @@ sub resolveWikiNameClashes {
   foreach my $item (sort { $a->{loginName} cmp $b->{loginName} } values %{ $this->{_wikiNameClaches} }) {
 
     my $wikiName = $item->{wikiName};
+    my $loginName = $item->{loginName};
+
+    writeDebug("processing clash for loginName=$loginName, wikiName=$wikiName, dn=$item->{dn}");
+
     $suffixes{$wikiName}++;
     my $newWikiName = $wikiName.$suffixes{$wikiName};
 
-    $this->cacheUserFromEntry($item->{entry}, $data, $wikiNames, $loginNames, $newWikiName)
-      && $nrRecords++;
+    $this->cacheUserFromEntry($item->{entry}, $data, $wikiNames, $loginNames, $newWikiName);
+    $nrRecords++;
   }
 
   delete $this->{_wikiNameClaches};
@@ -1033,9 +1037,7 @@ sub cacheUserFromEntry {
   $loginName = $this->fromUtf8($loginName);
 
   # 2. normalize
-  if ($this->{normalizeLoginName}) {
-    $loginName = $this->normalizeLoginName($loginName);
-  }
+  $loginName = $this->normalizeLoginName($loginName) if $this->{normalizeLoginName};
   return 0 if $this->{excludeMap}{$loginName};
 
   # construct the wikiName
@@ -1084,18 +1086,22 @@ sub cacheUserFromEntry {
     if ($this->{normalizeWikiName}) {
       $wikiName = $this->normalizeWikiName($wikiName);
     }
-  }
 
-  # aliasing it
-  my $alias = $this->{wikiNameAliases}{$wikiName};
-  if ($alias) {
-    writeDebug("using alias $alias for $wikiName");
-    $wikiName = $alias;
+    # 4. aliasing based on WikiName
+    my $alias = $this->{wikiNameAliases}{$wikiName};
+    if ($alias) {
+      writeDebug("using alias $alias for $wikiName");
+      $wikiName = $alias;
+    }
   }
 
   # check for clashes
   if (defined($wikiNames->{$wikiName})) {
-    writeWarning("$dn clashes with wikiName '$wikiNames->{$wikiName}' on '$wikiName' ... renaming later");
+    my $clashDN = $wikiNames->{$wikiName};
+    if ($clashDN eq '1') {
+      $clashDN = $data->{"U2DN::$loginName"} || '???';
+    }
+    writeWarning("$dn clashes with $clashDN on wikiName $wikiName ... renaming later");
     $this->{_wikiNameClaches}{$dn} = {
       entry=>$entry,
       dn=>$dn,
@@ -1112,7 +1118,11 @@ sub cacheUserFromEntry {
   }
 
   if (defined($loginNames->{$loginName})) {
-    writeWarning("$dn clashes with loginName '$loginNames->{$loginName}' on $loginName");
+    my $clashDN = $loginNames->{$loginName};
+    if ($clashDN eq '1') {
+      $clashDN = $data->{"U2DN::$loginName"} || '???';
+    }
+    writeWarning("$dn clashes with $clashDN on loginName $loginName ... please configure a unique loginName attribute");
   }
 
   $wikiNames->{$wikiName} = $dn;
@@ -1322,6 +1332,8 @@ normalizes a string to form a proper login
 
 sub normalizeLoginName {
   my ($this, $name) = @_;
+
+  $name =~ s/@.*$//o; # remove REALM
 
   $name = transliterate($name);
   $name =~ s/[^$Foswiki::cfg{LoginNameFilterIn}]//;
@@ -1574,12 +1586,10 @@ sub getEmails {
 
   $data ||= $this->{data};
 
-  unless ($this->{preCache}) {
-    $this->checkCacheForLoginName($login, $data);
-  }
+  $this->checkCacheForLoginName($login, $data) unless $this->{preCache};
 
-  my $emails = Foswiki::Sandbox::untaintUnchecked($data->{"U2EMAIL::".$login}) || '';
-  my @emails = split(/\s*,\s*/,$emails);
+  my $emails = Foswiki::Sandbox::untaintUnchecked($data->{ "U2EMAIL::" . $login }) || '';
+  my @emails = split(/\s*,\s*/, $emails);
   return \@emails;
 }
 
@@ -1801,6 +1811,7 @@ sub checkCacheForLoginName {
   return 0 unless($loginName);
 
   writeDebug("called checkCacheForLoginName($loginName)");
+  $loginName = $this->normalizeLoginName($loginName) if $this->{normalizeLoginName};
 
   $data ||= $this->{data};
 
@@ -1829,7 +1840,7 @@ sub checkCacheForLoginName {
     my %wikiNames = map {$_ => 1} @{$this->getAllWikiNames($data)};
     my %loginNames = map {$_ => 1} @{$this->getAllLoginNames($data)};
     $this->cacheUserFromEntry($entry, $data, \%wikiNames, \%loginNames);
-    #$this->resolveWikiNameClashes($data, \%wikiNames, \%loginNames);
+    $this->resolveWikiNameClashes($data, \%wikiNames, \%loginNames);
 
     $data->{WIKINAMES} = join(',', keys %wikiNames);
     $data->{LOGINNAMES} = join(',', keys %loginNames);
@@ -1906,6 +1917,34 @@ sub removeUserFromCache {
   $data->{LOGINNAMES} = join(',', keys %loginNames);
   $data->{WIKINAMES} = join(',', keys %wikiNames);
 
+}
+
+
+=begin text
+
+---++++ renameWikiName($loginName, $oldWikiName, $newWikiName) 
+
+assigns the new !WikiName to the given login
+
+=cut
+
+sub renameWikiName {
+  my ($this, $loginName, $oldWikiName, $newWikiName, $data) = @_;
+
+  $data ||= $this->{data};
+
+  writeDebug("renameWikiName($loginName, $oldWikiName, $newWikiName)");
+
+  if (defined $data->{"W2U::$oldWikiName"}) {
+    delete $data->{"W2U::$oldWikiName"};
+
+    $data->{"U2W::$loginName"} = $newWikiName;
+    $data->{"W2U::$newWikiName"} = $loginName;
+    return 1;
+  } 
+
+  writeDebug("WARNING: oldWikiName=$oldWikiName not found in cache");
+  return 0;
 }
 
 

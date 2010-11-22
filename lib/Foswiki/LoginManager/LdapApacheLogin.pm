@@ -1,6 +1,6 @@
 # Module of Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# Copyright (C) 2007-2009 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2007-2010 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -15,10 +15,10 @@
 package Foswiki::LoginManager::LdapApacheLogin;
 
 use strict;
-use Assert;
-use Foswiki::LoginManager::ApacheLogin;
-use Foswiki::Contrib::LdapContrib;
-use Foswiki::Sandbox;
+use Assert ();
+use Foswiki::LoginManager::ApacheLogin ();
+use Foswiki::Contrib::LdapContrib ();
+use Foswiki::Sandbox ();
 
 @Foswiki::LoginManager::LdapApacheLogin::ISA = qw( Foswiki::LoginManager::ApacheLogin );
 
@@ -42,13 +42,13 @@ sub loadSession {
   # process authUser login name
   if (defined $authUser) {
 
-    #print STDERR "befoer authUser=$authUser\n";
+    #print STDERR "before authUser=$authUser\n";
 
     $authUser =~ s/^\s*(.*?)\s*$/$1/g; # need to chop spaces ... buggy CGI?
 
     #print STDERR "after authUser=$authUser\n";
 
-    if (!$this->{ldap}{excludeMap}{$authUser}) {
+    unless ($this->{ldap}{excludeMap}{$authUser}) {
       $this->{ldap}->checkCacheForLoginName($authUser);
     }
   }
