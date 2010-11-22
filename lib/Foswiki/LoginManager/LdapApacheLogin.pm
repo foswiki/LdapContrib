@@ -45,6 +45,7 @@ sub loadSession {
     #print STDERR "before authUser=$authUser\n";
 
     $authUser =~ s/^\s*(.*?)\s*$/$1/g; # need to chop spaces ... buggy CGI?
+    $authUser = $this->{ldap}->normalizeLoginName($authUser) if $this->{ldap}{normalizeLoginName};
 
     #print STDERR "after authUser=$authUser\n";
 

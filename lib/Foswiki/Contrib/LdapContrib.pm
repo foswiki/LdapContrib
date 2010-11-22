@@ -1811,7 +1811,6 @@ sub checkCacheForLoginName {
   return 0 unless($loginName);
 
   writeDebug("called checkCacheForLoginName($loginName)");
-  $loginName = $this->normalizeLoginName($loginName) if $this->{normalizeLoginName};
 
   $data ||= $this->{data};
 
