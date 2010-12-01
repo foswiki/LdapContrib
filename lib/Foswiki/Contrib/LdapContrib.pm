@@ -24,11 +24,12 @@ use Net::LDAP::Extension::SetPassword;
 use DB_File;
 
 use Foswiki::Func ();
+use Foswiki::Plugins ();
 
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev: 4426 (2009-07-03) $';
-$RELEASE = '4.12';
+$RELEASE = '4.20';
 
 =pod
 
@@ -133,6 +134,11 @@ sub new {
   my $class = shift;
   my $session = shift;
 
+  # setting the SESSION var rather early; some foswiki engines do that a bit
+  # later than calling for a login manager. that will cause all sorts of
+  # problems as the Foswiki::Func API can't be used then. see Item10084
+  $Foswiki::Plugins::SESSION = $session;
+
   my $this = {
     ldap=>undef,# connect later
     error=>undef,
@@ -216,7 +222,7 @@ sub new {
   $this->{preCache} = 1 unless defined $this->{preCache};
 
   if ($this->{useSASL}) {
-    writeDebug("will use SASL authentication");
+    #writeDebug("will use SASL authentication");
     require Authen::SASL;
   }
 
@@ -388,7 +394,7 @@ sub disconnect {
 
   return unless defined($this->{ldap}) && $this->{isConnected};
 
-  writeDebug("called disconnect()");
+  #writeDebug("called disconnect()");
   $this->{ldap}->unbind();
   $this->{ldap} = undef;
   $this->{isConnected} = 0;
@@ -408,9 +414,11 @@ sub finish {
   return if $this->{isFinished};
   $this->{isFinished} = 1;
 
-  writeDebug("finishing");
+  #writeDebug("finishing");
+
   $this->disconnect();
   delete $sharedLdapContrib{$this->{session}};
+
   undef $this->{cacheDB};
   untie %{$this->{data}};
 }
@@ -470,7 +478,7 @@ search using $ldap->{loginFilter} in the subtree defined by $ldap->{userBase}.
 sub getAccount {
   my ($this, $login) = @_;
 
-  writeDebug("called getAccount($login)");
+  #writeDebug("called getAccount($login)");
   return undef if $this->{excludeMap}{$login};
 
   my $loginFilter = $this->{loginFilter};
@@ -618,10 +626,10 @@ sub initCache {
   return unless $Foswiki::cfg{UserMappingManager} =~ /LdapUserMapping/ ||
                 $Foswiki::cfg{PasswordManager} =~ /LdapPasswdUser/;
 
-  writeDebug("called initCache");
+  #writeDebug("called initCache");
 
-  # open database
-  writeDebug("opening ldap cache from $this->{cacheFile}");
+  # open cache
+  #writeDebug("opening ldap cache from $this->{cacheFile}");
   $this->{cacheDB} = 
     tie %{$this->{data}}, 'DB_File', $this->{cacheFile}, O_CREAT|O_RDWR, 0664, $DB_HASH
     or die "Cannot open file $this->{cacheFile}: $!";
@@ -629,8 +637,9 @@ sub initCache {
   # refresh by user interaction
   my $refresh = '';
   $refresh = CGI::param('refreshldap') || '';
-  $refresh = $refresh eq 'on'?1:0;
-  writeDebug("refreshing cache explicitly") if $refresh;
+  $refresh = 1 if $refresh eq 'on';
+  $refresh = 2 if $refresh eq 'force';
+  $refresh = 0 unless $refresh;
 
   if ($this->{maxCacheAge} > 0) { # is cache expiration enabled
 
@@ -652,28 +661,30 @@ sub initCache {
   }
 
   # clear to reload it
-  if ($refresh) {
-    writeWarning("updating cache");
-    writeDebug("updating cache");
-    $this->refreshCache();
-    writeWarning("updating cache done");
-    writeDebug("updating cache done");
-  }
+  $this->refreshCache($refresh);
 }
 
 =pod
 
----++++ refreshCache() -> $boolean
+---++++ refreshCache($mode) -> $boolean
 
 download all relevant records from the LDAP server and
-store it into a database
+store it into a database.
+
+  * mode = 0: no refersh
+  * mode = 1: normal refersh
+  * mode = 2: nuke previous decisions on wikiName clashes
 
 =cut
 
 sub refreshCache {
-  my ($this) = @_;
+  my ($this, $mode) = @_;
 
-  writeDebug("called refreshCache");
+  return unless $mode;
+  
+  #writeDebug("called refreshCache");
+
+  $this->{_refreshMode} = $mode;
 
   # create a temporary tie
   my $tempCacheFile = $this->{cacheFile}.'_tmp';
@@ -690,7 +701,7 @@ sub refreshCache {
   # precache the LDAP directory if enabled in configuration file
   # writeDebug("Config:" . $this->{preCache});
   if ($this->{preCache}) {
-    writeDebug("precaching is ON.");
+    #writeDebug("precaching is ON.");
     my $isOk = $this->refreshUsersCache(\%tempData);
 
     if ($isOk && $this->{mapGroups}) {
@@ -705,7 +716,7 @@ sub refreshCache {
     }
   }
 
-  writeDebug("flushing db to disk");
+  #writeDebug("flushing db to disk");
   $tempData{lastUpdate} = time();
   $tempCache->sync();
   undef $tempCache;
@@ -715,13 +726,15 @@ sub refreshCache {
   undef $this->{cacheDB};
   untie %{$this->{data}};
 
-  writeDebug("replacing working copy");
+  #writeDebug("replacing working copy");
   rename $tempCacheFile,$this->{cacheFile};
 
   # reconnect hash
   $this->{cacheDB} = 
     tie %{$this->{data}}, 'DB_File', $this->{cacheFile}, O_CREAT|O_RDWR, 0664, $DB_HASH
     or die "Cannot open file $this->{cacheFile}: $!";
+
+  undef $this->{_refreshMode};
 
   return 1;
 }
@@ -740,7 +753,7 @@ returns true if new records have been loaded
 sub refreshUsersCache {
   my ($this, $data) = @_;
 
-  writeDebug("called refreshUsersCache()");
+  #writeDebug("called refreshUsersCache()");
   $data ||= $this->{data};
 
   # prepare search
@@ -763,7 +776,7 @@ sub refreshUsersCache {
     $page = Net::LDAP::Control::Paged->new(size => $this->{pageSize});
     push(@args, control => [$page]);
   } else {
-    writeDebug("reading users from cache in one chunk");
+    #writeDebug("reading users from cache in one chunk");
   }
 
   # read pages
@@ -776,7 +789,7 @@ sub refreshUsersCache {
     # perform search
     my $mesg = $this->search(@args);
     unless ($mesg) {
-      writeDebug("oops, no result");
+      writeDebug("oops, no result querying for users");
       writeWarning("error refreshing the user cache: ".$this->getError());
       $gotError = 1;
       last;
@@ -803,7 +816,7 @@ sub refreshUsersCache {
       }
     }
   } # end reading pages
-  writeDebug("done reading pages");
+  #writeDebug("done reading pages");
 
   # clean up
   if ($cookie) {
@@ -822,7 +835,7 @@ sub refreshUsersCache {
   $data->{WIKINAMES} = join(',', keys %wikiNames);
   $data->{LOGINNAMES} = join(',', keys %loginNames);
 
-  writeDebug("got $nrRecords keys in cache");
+  #writeDebug("got $nrRecords keys in cache");
 
   return 1;
 }
@@ -850,15 +863,29 @@ sub resolveWikiNameClashes {
 
   my %suffixes = ();
   my $nrRecords = 0;
+  my $refreshMode = $this->{_refreshMode} || 0;
   foreach my $item (sort { $a->{loginName} cmp $b->{loginName} } values %{ $this->{_wikiNameClaches} }) {
 
     my $wikiName = $item->{wikiName};
     my $loginName = $item->{loginName};
+    my $dn = $item->{dn};
+    my $prevWikiName = ($refreshMode < 2)?$this->getWikiNameOfDn($dn):'';
+    my $newWikiName;
+    my $prevDN;
 
-    writeDebug("processing clash for loginName=$loginName, wikiName=$wikiName, dn=$item->{dn}");
+    if ($prevWikiName) {
+      writeDebug("found prevWikiName=$prevWikiName for $dn");
+      $newWikiName = $prevWikiName;
+    } else {
+      # search for a new wikiname 
+      do {
+        $suffixes{$wikiName}++;
+        $newWikiName = $wikiName.$suffixes{$wikiName};
+        $prevDN = $this->getDnOfWikiName($newWikiName);
+      } until (!$prevDN || $prevDN eq $dn);
+    }
 
-    $suffixes{$wikiName}++;
-    my $newWikiName = $wikiName.$suffixes{$wikiName};
+    writeDebug("processing clash of loginName=$loginName on wikiName=$wikiName, dn=$item->{dn}, resolves to newWikiName=$newWikiName");
 
     $this->cacheUserFromEntry($item->{entry}, $data, $wikiNames, $loginNames, $newWikiName);
     $nrRecords++;
@@ -905,7 +932,7 @@ sub refreshGroupsCache {
     $page = Net::LDAP::Control::Paged->new(size => $this->{pageSize});
     push(@args, control => [$page]);
   } else {
-    writeDebug("reading users from cache in one chunk");
+    #writeDebug("reading group from cache in one chunk");
   }
 
   # read pages
@@ -917,7 +944,7 @@ sub refreshGroupsCache {
     # perform search
     my $mesg = $this->search(@args);
     unless ($mesg) {
-      #writeDebug("oops, no result");
+      #writeDebug("oops, no result querying for groups");
       writeWarning("error refeshing the groups cache: ".$this->getError());
       last;
     }
@@ -962,7 +989,7 @@ sub refreshGroupsCache {
       my $groupName = $this->{_groupId}{$groupId};
       next unless $groupName;
       foreach my $member (keys %{$this->{_primaryGroup}{$groupId}}) {
-        writeDebug("adding $member to its primary group $groupName");
+        #writeDebug("adding $member to its primary group $groupName");
         $this->{_groups}{$groupName}{$member} = 1;
       }
     }
@@ -982,7 +1009,7 @@ sub refreshGroupsCache {
         if ($memberName) {
           $members{$memberName} = 1;
         } else {
-          writeDebug("oops, $member not found, but member of $groupName");
+          writeWarning("oops, $member not found, but member of $groupName");
         } 
       } else {
         $members{$member} = 1;
@@ -997,7 +1024,7 @@ sub refreshGroupsCache {
   # remember list of all groups
   $data->{GROUPS} = join(',', sort keys %groupNames);
 
-  writeDebug("got $nrRecords keys in cache");
+  #writeDebug("got $nrRecords keys in cache");
 
   return 1;
 }
@@ -1041,80 +1068,108 @@ sub cacheUserFromEntry {
   return 0 if $this->{excludeMap}{$loginName};
 
   # construct the wikiName
-  if ($wikiName) {
-    writeWarning("found explicit wikiName '$wikiName' for $dn");
+  my $isExplicitWikiName = (defined $wikiName)?1:0;
+  if ($isExplicitWikiName) {
+    #writeDebug("found explicit wikiName '$wikiName' for $dn");
   } else {
 
-    # 1. get it
-    foreach my $attr (@{$this->{wikiNameAttributes}}) {
-      my $value = $entry->get_value($attr);
-      next unless $value;
-      $value =~ s/^\s+//o;
-      $value =~ s/\s+$//o;
-      $value = $this->fromUtf8($value);
-      #writeDebug("$attr=$value");
-      $wikiName .= " ".$value;
-    }
+    # 0. get previously used wikiName
+    my $refreshMode = $this->{_refreshMode} || 0;
+    my $prevWikiName = ($refreshMode < 2)?$this->getWikiNameOfDn($dn):'';
 
-    unless ($wikiName) {
-      $wikiName = $loginName;
-      writeWarning("no WikiNameAttributes found for $dn ... deriving WikiName from LoginName: '$wikiName'");
-    }
+    # keep a wikiName once it has been computed
+    if ($prevWikiName) {
+      writeDebug("found prevWikiName=$prevWikiName for $dn");
+      $wikiName = $prevWikiName;
+    } else {
 
-    # 2. rewrite
-    my $oldWikiName = $wikiName;
-    foreach my $pattern (keys %{$this->{rewriteWikiNames}}) {
-      my $subst = $this->{rewriteWikiNames}{$pattern};
-      if ($wikiName =~ /^(?:$pattern)$/) {
-	my $arg1 = $1 || '';
-	my $arg2 = $2 || '';
-	my $arg3 = $3 || '';
-	my $arg4 = $4 || '';
-	my $arg5 = $5 || '';
-	$subst =~ s/\$1/$arg1/g;
-	$subst =~ s/\$2/$arg2/g;
-	$subst =~ s/\$3/$arg3/g;
-	$subst =~ s/\$4/$arg4/g;
-	$subst =~ s/\$5/$arg5/g;
-	$wikiName = $subst;
-	writeDebug("rewriting '$oldWikiName' to '$wikiName'"); 
-	last;
+      # 1. compute a new wikiName
+      my @wikiName = ();
+      foreach my $attr (@{$this->{wikiNameAttributes}}) {
+        my $value = $entry->get_value($attr);
+        next unless $value;
+        $value =~ s/^\s+//o;
+        $value =~ s/\s+$//o;
+        $value = $this->fromUtf8($value);
+        #writeDebug("$attr=$value");
+        push @wikiName, $value;
+      }
+      $wikiName = join(" ", @wikiName);
+
+      unless ($wikiName) {
+        $wikiName = $loginName;
+        writeWarning("no WikiNameAttributes found for $dn ... deriving WikiName from LoginName: '$wikiName'");
+      }
+
+      # 2. rewrite
+      my $oldWikiName = $wikiName;
+      foreach my $pattern (keys %{$this->{rewriteWikiNames}}) {
+        my $subst = $this->{rewriteWikiNames}{$pattern};
+        if ($wikiName =~ /^(?:$pattern)$/) {
+          my $arg1 = $1;
+          my $arg2 = $2;
+          my $arg3 = $3;
+          my $arg4 = $4;
+          my $arg5 = $5;
+          $arg1 = '' unless defined $arg1;
+          $arg2 = '' unless defined $arg2;
+          $arg3 = '' unless defined $arg3;
+          $arg4 = '' unless defined $arg4;
+          $subst =~ s/\$1/$arg1/g;
+          $subst =~ s/\$2/$arg2/g;
+          $subst =~ s/\$3/$arg3/g;
+          $subst =~ s/\$4/$arg4/g;
+          $subst =~ s/\$5/$arg5/g;
+          $wikiName = $subst;
+          writeDebug("rewriting '$oldWikiName' to '$wikiName' using rule $pattern"); 
+          last;
+        }
+      }
+
+      # 3. normalize
+      if ($this->{normalizeWikiName}) {
+        $wikiName = $this->normalizeWikiName($wikiName);
+      }
+
+      # 4. aliasing based on WikiName
+      my $alias = $this->{wikiNameAliases}{$wikiName};
+      if ($alias) {
+        writeDebug("using alias $alias for $wikiName");
+        $wikiName = $alias;
+      }
+
+      # 5. check if this dn maps to a wikiName already in use by another dn before
+      my $prevDN = $this->getDnOfWikiName($wikiName) || '';
+      if ($prevDN && $prevDN ne $dn) {
+
+        writeWarning("$dn clashes with wikiName $wikiName already in use by $prevDN ... renaming later");
+        $this->{_wikiNameClaches}{$dn} = {
+          entry => $entry,
+          dn => $dn,
+          wikiName => $wikiName,
+          loginName => $loginName,
+        };
+        return 0;
+      }
+
+      # 6. check for name clashes within this transaction
+      my $clashDN = $this->getDnOfWikiName($wikiName, $data);
+      if (defined $clashDN) {
+        if ($dn ne $clashDN) {
+          writeWarning("$dn clashes with $clashDN on wikiName $wikiName ... renaming later");
+          $this->{_wikiNameClaches}{$dn} = {
+            entry=>$entry,
+            dn=>$dn,
+            wikiName=>$wikiName,
+            loginName=>$loginName,
+          };
+        } else {
+          # never reach: same dn found twice in same transaction
+          writeWarning("$dn found twice in ldap search... ignoring second one");
+        }
+        return 0;
       }
     }
-
-    # 3. normalize
-    if ($this->{normalizeWikiName}) {
-      $wikiName = $this->normalizeWikiName($wikiName);
-    }
-
-    # 4. aliasing based on WikiName
-    my $alias = $this->{wikiNameAliases}{$wikiName};
-    if ($alias) {
-      writeDebug("using alias $alias for $wikiName");
-      $wikiName = $alias;
-    }
-  }
-
-  # check for clashes
-  if (defined($wikiNames->{$wikiName})) {
-    my $clashDN = $wikiNames->{$wikiName};
-    if ($clashDN eq '1') {
-      $clashDN = $data->{"U2DN::$loginName"} || '???';
-    }
-    writeWarning("$dn clashes with $clashDN on wikiName $wikiName ... renaming later");
-    $this->{_wikiNameClaches}{$dn} = {
-      entry=>$entry,
-      dn=>$dn,
-      wikiName=>$wikiName,
-      loginName=>$loginName,
-    };
-    return 0;
-  }
-
-  # is there an old mapping where this dn was matched to a different wikiName?
-  if ($this->{data} && $this->{data}{"U2DN::$loginName"} && $this->{data}{"U2DN::$loginName"} ne $dn) {
-    writeWarning("different $dn on old loginName '$loginName'");
-    # what to do?
   }
 
   if (defined($loginNames->{$loginName})) {
@@ -1123,6 +1178,7 @@ sub cacheUserFromEntry {
       $clashDN = $data->{"U2DN::$loginName"} || '???';
     }
     writeWarning("$dn clashes with $clashDN on loginName $loginName ... please configure a unique loginName attribute");
+    return 0;
   }
 
   $wikiNames->{$wikiName} = $dn;
@@ -1172,7 +1228,7 @@ sub cacheUserFromEntry {
         foreach my $memberDn (@membersDn) {
           if ($memberDn eq $dn) {
 
-            writeDebug("Refreshing group $groupName to catch new members");
+            writeDebug("refreshing group $groupName to catch new members");
             removeGroupFromCache($this, $groupName, $data);
             checkCacheForGroupName($this, $groupName, $data);
             last LOOP;
@@ -1223,11 +1279,15 @@ sub cacheGroupFromEntry {
   foreach my $pattern (keys %{$this->{rewriteGroups}}) {
     my $subst = $this->{rewriteGroups}{$pattern};
     if ($groupName =~ /^(?:$pattern)$/) {
-      my $arg1 = $1 || '';
-      my $arg2 = $2 || '';
-      my $arg3 = $3 || '';
-      my $arg4 = $4 || '';
-      my $arg5 = $5 || '';
+      my $arg1 = $1;
+      my $arg2 = $2;
+      my $arg3 = $3;
+      my $arg4 = $4;
+      my $arg5 = $5;
+      $arg1 = '' unless defined $arg1;
+      $arg2 = '' unless defined $arg2;
+      $arg3 = '' unless defined $arg3;
+      $arg4 = '' unless defined $arg4;
       $subst =~ s/\$1/$arg1/g;
       $subst =~ s/\$2/$arg2/g;
       $subst =~ s/\$3/$arg3/g;
@@ -1235,7 +1295,7 @@ sub cacheGroupFromEntry {
       $subst =~ s/\$5/$arg5/g;
       $groupName = $subst;
       $foundRewriteRule = 1;
-      writeDebug("rewriting '$oldGroupName' to '$groupName'"); 
+      writeDebug("rewriting '$oldGroupName' to '$groupName' using rule $pattern"); 
       last;
     }
   }
@@ -1314,6 +1374,7 @@ sub normalizeWikiName {
   # if it isn't a valid WikiWord and there's no homepage of that name yet, then try more agressively to 
   # create a proper WikiName
   if (!Foswiki::Func::isValidWikiWord($wikiName) && !Foswiki::Func::topicExists($Foswiki::cfg{UsersWebName}, $wikiName)) {
+    $wikiName = '';
     foreach my $part (split(/[^$Foswiki::regex{mixedAlphaNum}]/, $name)) {
       $wikiName .= ucfirst(lc($part));
     }
@@ -1539,6 +1600,8 @@ sub getGroupNames {
 
   $data ||= $this->{data},
 
+  return unless $data;
+
   my $groupNames = Foswiki::Sandbox::untaintUnchecked($data->{GROUPS}) || '';
   my @groupNames = split(/\s*,\s*/,$groupNames);
 
@@ -1558,6 +1621,8 @@ sub isGroup {
 
   #writeDebug("called isGroup($wikiName)");
   $data ||= $this->{data};
+
+  return unless $data;
 
   return undef if $this->{excludeMap}{$wikiName};
   return 1 if defined($data->{"GROUPS::$wikiName"});
@@ -1586,6 +1651,8 @@ sub getEmails {
 
   $data ||= $this->{data};
 
+  return unless $data;
+
   $this->checkCacheForLoginName($login, $data) unless $this->{preCache};
 
   my $emails = Foswiki::Sandbox::untaintUnchecked($data->{ "U2EMAIL::" . $login }) || '';
@@ -1606,6 +1673,8 @@ sub getLoginOfEmail {
 
   $data ||= $this->{data};
 
+  return unless $data;
+
   my $loginNames = Foswiki::Sandbox::untaintUnchecked($data->{"EMAIL2U::".$email}) || '';
   my @loginNames = split(/\s*,\s*/,$loginNames);
   return \@loginNames;
@@ -1625,6 +1694,8 @@ sub getGroupMembers {
   #writeDebug("called getGroupMembers $groupName");
 
   $data ||= $this->{data};
+
+  return unless $data;
 
   unless ($this->{preCache}) {
     # Make sure that the group is in the cache. This will cause the addition of the group to the cache if it exists in LDAP
@@ -1675,6 +1746,8 @@ sub getWikiNameOfLogin {
 
   $data ||= $this->{data};
 
+  return unless $data;
+
   unless ($this->{preCache}) {
     # Make sure the user has been retreived from LDAP
     $this->checkCacheForLoginName($loginName, $data);
@@ -1695,6 +1768,9 @@ sub getLoginOfWikiName {
   my ($this, $wikiName, $data) = @_;
 
   $data ||= $this->{data};
+  
+  return unless $data;
+
   my $loginName = Foswiki::Sandbox::untaintUnchecked($data->{"W2U::$wikiName"});
   
   unless ($loginName) {
@@ -1719,6 +1795,8 @@ sub getAllWikiNames {
 
   $data ||= $this->{data};
 
+  return unless $data;
+
   my $wikiNames = Foswiki::Sandbox::untaintUnchecked($data->{WIKINAMES}) || '';
   my @wikiNames = split(/\s*,\s*/,$wikiNames);
   return \@wikiNames;
@@ -1737,6 +1815,8 @@ sub getAllLoginNames {
 
   $data ||= $this->{data};
 
+  return unless $data;
+
   my $loginNames = Foswiki::Sandbox::untaintUnchecked($data->{LOGINNAMES}) || '';
   my @loginNames = split(/\s*,\s*/,$loginNames);
   return \@loginNames;
@@ -1753,10 +1833,62 @@ returns the Distinguished Name of the LDAP record of the given name
 sub getDnOfLogin {
   my ($this, $loginName, $data) = @_;
 
+  return unless $loginName;
+
   $data ||= $this->{data};
+
+  return unless $data;
 
   return Foswiki::Sandbox::untaintUnchecked($data->{"U2DN::$loginName"});
 }
+
+=pod 
+
+---++++ getDnOfWikiName($wikiName, $data) -> $dn
+
+returns the Distinguished Name of the LDAP record of the given name
+
+=cut
+
+sub getDnOfWikiName {
+  my ($this, $wikiName, $data) = @_;
+
+  return unless $wikiName;
+
+  $data ||= $this->{data};
+
+  return unless $data;
+
+  my $loginName = Foswiki::Sandbox::untaintUnchecked($data->{"W2U::$wikiName"});
+  return unless $loginName;
+
+  return Foswiki::Sandbox::untaintUnchecked($data->{"U2DN::$loginName"});
+}
+
+
+=pod 
+
+---++++ getWikiNameOfDn($dn, $data) -> $wikiName
+
+returns the wikiName used by a given Distinguished Name; reverse of getDnOfWikiName()
+
+=cut
+
+sub getWikiNameOfDn {
+  my ($this, $dn, $data) = @_;
+
+  return unless $dn;
+
+  $data ||= $this->{data};
+
+  return unless $data;
+
+  my $loginName = Foswiki::Sandbox::untaintUnchecked($data->{"DN2U::$dn"});
+  return unless $loginName;
+
+  return Foswiki::Sandbox::untaintUnchecked($data->{"U2W::$loginName"});
+}
+
 
 =pod 
 
@@ -1783,7 +1915,7 @@ sub changePassword {
   my $errorCode = $this->checkError($msg);
 
   if ($errorCode != LDAP_SUCCESS) {
-    writeDebug("error in changePassword: ".$this->getError());
+    writeWarning("error in changePassword: ".$this->getError());
     return undef;
   }
 
@@ -1810,7 +1942,7 @@ sub checkCacheForLoginName {
   
   return 0 unless($loginName);
 
-  writeDebug("called checkCacheForLoginName($loginName)");
+  #writeDebug("called checkCacheForLoginName($loginName)");
 
   $data ||= $this->{data};
 
@@ -1831,7 +1963,7 @@ sub checkCacheForLoginName {
   my $entry = $this->getAccount($loginName);
 
   unless ($entry) {
-    writeDebug("oops, no result looking for user $loginName in LDAP");
+    writeWarning("oops, no result looking for user $loginName in LDAP");
     $this->addIgnoredUser($loginName, $data);
   } else {
     # merge this user record
@@ -1839,7 +1971,6 @@ sub checkCacheForLoginName {
     my %wikiNames = map {$_ => 1} @{$this->getAllWikiNames($data)};
     my %loginNames = map {$_ => 1} @{$this->getAllLoginNames($data)};
     $this->cacheUserFromEntry($entry, $data, \%wikiNames, \%loginNames);
-    $this->resolveWikiNameClashes($data, \%wikiNames, \%loginNames);
 
     $data->{WIKINAMES} = join(',', keys %wikiNames);
     $data->{LOGINNAMES} = join(',', keys %loginNames);
@@ -1942,7 +2073,7 @@ sub renameWikiName {
     return 1;
   } 
 
-  writeDebug("WARNING: oldWikiName=$oldWikiName not found in cache");
+  #writeWarning("oldWikiName=$oldWikiName not found in cache");
   return 0;
 }
 
@@ -1976,6 +2107,8 @@ sub getAllUnknownUsers {
   my ($this, $data) = @_;
 
   $data ||= $this->{data};
+
+  return unless $data;
 
   my $wikiNames = Foswiki::Sandbox::untaintUnchecked($data->{UNKWNUSERS}) || '';
   my @wikiNames = split(/\s*,\s*/,$wikiNames);
@@ -2016,6 +2149,8 @@ sub getAllUnknownGroups {
 
   $data ||= $this->{data};
 
+  return unless $data;
+
   my $wikiNames = Foswiki::Sandbox::untaintUnchecked($data->{UNKWNGROUPS}) || '';
   my @wikiNames = split(/\s*,\s*/,$wikiNames);
   return \@wikiNames;
@@ -2054,7 +2189,7 @@ sub checkCacheForGroupName {
   my $entry = $this->getGroup($groupName);
   unless ($entry) {
 
-    writeDebug("oops, no result looking for group $groupName in LDAP");
+    writeWarning("oops, no result looking for group $groupName in LDAP");
     $this->addIgnoredGroup($groupName, $data);
     return 0;
   } else {
@@ -2075,7 +2210,7 @@ sub checkCacheForGroupName {
         if (defined $currentGroupName && $groupName eq $currentGroupName) {
           foreach my $member (keys %{ $this->{_primaryGroup}{$groupId} }) {
 
-            writeDebug("adding $member to its primary group $currentGroupName");
+            #writeDebug("adding $member to its primary group $currentGroupName");
             $this->{_groups}{$currentGroupName}{$member} = 1;
           }
         }
@@ -2114,7 +2249,7 @@ sub checkCacheForGroupName {
             }
           }
 
-          writeDebug("oops, $member not found, but member of $groupName");
+          writeWarning("oops, $member not found, but member of $groupName");
           $uncachedMembersDn{$member} = 1;
         }
       } else {

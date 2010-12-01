@@ -146,7 +146,7 @@ Maps a canonical user name to a wikiname
 sub getWikiName {
   my ($this, $cUID) = @_;
 
-  writeDebug("called LdapUserMapping::getWikiName($cUID)");
+  #writeDebug("called LdapUserMapping::getWikiName($cUID)");
     
   my $loginName = $this->getLoginName($cUID);
   return undef unless $loginName;
@@ -163,7 +163,7 @@ sub getWikiName {
   unless ($wikiName) {
 
     # fallback
-    writeDebug("asking SUPER");
+    #writeDebug("asking SUPER");
     $wikiName = $this->SUPER::getWikiName($cUID);
   }
 
@@ -171,7 +171,7 @@ sub getWikiName {
   $wikiName ||= $loginName;
 
 
-  writeDebug("returning $wikiName");
+  #writeDebug("returning $wikiName");
   return $wikiName; 
 }
 

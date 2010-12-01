@@ -114,7 +114,7 @@ $Foswiki::cfg{Ldap}{MailAttribute} = 'mail';
 # **STRING**
 # The user's wiki name attribute. This is the attribute to generate
 # the WikiName from. 
-$Foswiki::cfg{Ldap}{WikiNameAttribute} = 'cn';
+$Foswiki::cfg{Ldap}{WikiNameAttributes} = 'cn';
 
 # **BOOLEAN**
 # Enable/disable normalization of WikiUserNames as they come from LDAP
@@ -130,7 +130,24 @@ $Foswiki::cfg{Ldap}{NormalizeLoginNames} = 0;
 # **STRING**
 # Alias old !WikiNames to new account. This is a comma separated list of
 # "OldName=NewName" values.
+# Warning: this setting is deprecated - use <code>RewriteWikiNames</code> instead
 $Foswiki::cfg{Ldap}{WikiNameAliases} = '';
+
+# **PERL**
+# A hash mapping of rewrite rules. Rules are separated by commas. A rule has 
+# the form 
+# <pre>{
+#   'pattern1' => 'substitute1', 
+#   'pattern2' => 'substitute2' 
+# }</pre>
+# consists of a name pattern that has to match the wiki name to be rewritten
+# and a substitute value that is used to replace the matched pattern. The
+# substitute might contain $1, $2, ... , $5 to insert the first, second, ..., fifth
+# bracket pair in the key pattern. (see perl manual for regular expressions).
+# Example: '(.*)_users' => '$1'
+$Foswiki::cfg{Ldap}{RewriteWikiNames} = {
+  '^(.*)@.*$' => '$1'
+};
 
 # **BOOLEAN**
 # Allow/disallow changing the LDAP password using the ChangePassword feature
@@ -220,22 +237,6 @@ $Foswiki::cfg{Ldap}{MapGroups} = 1;
 # bracket pair in the key pattern. (see perl manual for regular expressions).
 # Example: '(.*)_users' => '$1'
 $Foswiki::cfg{Ldap}{RewriteGroups} = {
-};
-
-# **PERL**
-# A hash mapping of rewrite rules. Rules are separated by commas. A rule has 
-# the form 
-# <pre>{
-#   'pattern1' => 'substitute1', 
-#   'pattern2' => 'substitute2' 
-# }</pre>
-# consists of a name pattern that has to match the wiki name to be rewritten
-# and a substitute value that is used to replace the matched pattern. The
-# substitute might contain $1, $2, ... , $5 to insert the first, second, ..., fifth
-# bracket pair in the key pattern. (see perl manual for regular expressions).
-# Example: '(.*)_users' => '$1'
-$Foswiki::cfg{Ldap}{RewriteWikiNames} = {
-  '^(.*)@.*$' => '$1'
 };
 
 # **BOOLEAN**

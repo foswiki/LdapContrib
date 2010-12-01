@@ -26,6 +26,7 @@ sub new {
   my ($class, $session) = @_;
 
   my $this = bless( $class->SUPER::new($session), $class );
+
   $this->{ldap} = Foswiki::Contrib::LdapContrib::getLdapContrib($session);
   return $this;
 }
@@ -44,7 +45,10 @@ sub loadSession {
 
     #print STDERR "before authUser=$authUser\n";
 
-    $authUser =~ s/^\s*(.*?)\s*$/$1/g; # need to chop spaces ... buggy CGI?
+    $authUser =~ s/^\s+//o;
+    $authUser =~ s/\s+$//o;
+    $authUser = $this->{ldap}->fromUtf8($authUser);
+
     $authUser = $this->{ldap}->normalizeLoginName($authUser) if $this->{ldap}{normalizeLoginName};
 
     #print STDERR "after authUser=$authUser\n";
