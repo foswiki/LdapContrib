@@ -29,7 +29,7 @@ use Foswiki::Plugins ();
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev: 4426 (2009-07-03) $';
-$RELEASE = '4.20';
+$RELEASE = '4.21';
 
 =pod
 
@@ -40,7 +40,7 @@ means to integrate an LDAP directory service.  Used by Foswiki::Users::LdapPassw
 for authentication, Foswiki::Users::LdapUserMapping for group definitions and
 Foswiki:Plugins/LdapNgPlugin to interface general query services.
 
----+++ Typical usage
+---++++ Typical usage
 <verbatim>
 my $ldap = new Foswiki::Contrib::LdapContrib;
 
@@ -56,7 +56,7 @@ my $value = $entry->get_value('cn');
 my @emails = $entry->get_value('mail');
 </verbatim>
 
----+++ Cache storage format
+---++++ Cache storage format
 
 The cache stores a series of key-value pairs in a DB_File. The following
 keys are used:
@@ -79,7 +79,7 @@ keys are used:
 
 =pod
 
----+++ writeDebug($msg) 
+---++++ writeDebug($msg) 
 
 Static Method to write a debug messages. 
 
@@ -92,7 +92,7 @@ sub writeDebug {
 
 =pod
 
----+++ writeWarning($msg) 
+---++++ writeWarning($msg) 
 
 Static Method to write a warning messages. 
 
@@ -402,7 +402,7 @@ sub disconnect {
 
 =pod
 
----++++ finish
+---++++ finish()
 
 finalize this ldap object.
 
@@ -671,9 +671,9 @@ sub initCache {
 download all relevant records from the LDAP server and
 store it into a database.
 
-  * mode = 0: no refersh
-  * mode = 1: normal refersh
-  * mode = 2: nuke previous decisions on wikiName clashes
+   * mode = 0: no refersh
+   * mode = 1: normal refersh
+   * mode = 2: nuke previous decisions on wikiName clashes
 
 =cut
 
@@ -847,7 +847,7 @@ sub refreshUsersCache {
 if there have been name clashes during cacheIserFromEntry() those entry records
 have not yet been added to the cache. They are kept until all clashes have been
 found and a deterministic renaming scheme can be applied. Clashed WikiNames will be
-enumerated - WikiName1, WikiName2, WikiName3 etc - and finally added to the database.
+enumerated - !WikiName1, !WikiName2, !WikiName3 etc - and finally added to the database.
 The renaming is kept stable by sorting the dn entry of all clashed entries.
 
 returns the number of additional entries that have been cached
@@ -1600,8 +1600,6 @@ sub getGroupNames {
 
   $data ||= $this->{data},
 
-  return unless $data;
-
   my $groupNames = Foswiki::Sandbox::untaintUnchecked($data->{GROUPS}) || '';
   my @groupNames = split(/\s*,\s*/,$groupNames);
 
@@ -1621,8 +1619,6 @@ sub isGroup {
 
   #writeDebug("called isGroup($wikiName)");
   $data ||= $this->{data};
-
-  return unless $data;
 
   return undef if $this->{excludeMap}{$wikiName};
   return 1 if defined($data->{"GROUPS::$wikiName"});
@@ -1651,8 +1647,6 @@ sub getEmails {
 
   $data ||= $this->{data};
 
-  return unless $data;
-
   $this->checkCacheForLoginName($login, $data) unless $this->{preCache};
 
   my $emails = Foswiki::Sandbox::untaintUnchecked($data->{ "U2EMAIL::" . $login }) || '';
@@ -1673,8 +1667,6 @@ sub getLoginOfEmail {
 
   $data ||= $this->{data};
 
-  return unless $data;
-
   my $loginNames = Foswiki::Sandbox::untaintUnchecked($data->{"EMAIL2U::".$email}) || '';
   my @loginNames = split(/\s*,\s*/,$loginNames);
   return \@loginNames;
@@ -1694,8 +1686,6 @@ sub getGroupMembers {
   #writeDebug("called getGroupMembers $groupName");
 
   $data ||= $this->{data};
-
-  return unless $data;
 
   unless ($this->{preCache}) {
     # Make sure that the group is in the cache. This will cause the addition of the group to the cache if it exists in LDAP
@@ -1746,8 +1736,6 @@ sub getWikiNameOfLogin {
 
   $data ||= $this->{data};
 
-  return unless $data;
-
   unless ($this->{preCache}) {
     # Make sure the user has been retreived from LDAP
     $this->checkCacheForLoginName($loginName, $data);
@@ -1769,8 +1757,6 @@ sub getLoginOfWikiName {
 
   $data ||= $this->{data};
   
-  return unless $data;
-
   my $loginName = Foswiki::Sandbox::untaintUnchecked($data->{"W2U::$wikiName"});
   
   unless ($loginName) {
@@ -1795,8 +1781,6 @@ sub getAllWikiNames {
 
   $data ||= $this->{data};
 
-  return unless $data;
-
   my $wikiNames = Foswiki::Sandbox::untaintUnchecked($data->{WIKINAMES}) || '';
   my @wikiNames = split(/\s*,\s*/,$wikiNames);
   return \@wikiNames;
@@ -1814,8 +1798,6 @@ sub getAllLoginNames {
   my ($this, $data) = @_;
 
   $data ||= $this->{data};
-
-  return unless $data;
 
   my $loginNames = Foswiki::Sandbox::untaintUnchecked($data->{LOGINNAMES}) || '';
   my @loginNames = split(/\s*,\s*/,$loginNames);
@@ -1837,8 +1819,6 @@ sub getDnOfLogin {
 
   $data ||= $this->{data};
 
-  return unless $data;
-
   return Foswiki::Sandbox::untaintUnchecked($data->{"U2DN::$loginName"});
 }
 
@@ -1856,8 +1836,6 @@ sub getDnOfWikiName {
   return unless $wikiName;
 
   $data ||= $this->{data};
-
-  return unless $data;
 
   my $loginName = Foswiki::Sandbox::untaintUnchecked($data->{"W2U::$wikiName"});
   return unless $loginName;
@@ -1880,8 +1858,6 @@ sub getWikiNameOfDn {
   return unless $dn;
 
   $data ||= $this->{data};
-
-  return unless $data;
 
   my $loginName = Foswiki::Sandbox::untaintUnchecked($data->{"DN2U::$dn"});
   return unless $loginName;
@@ -2108,8 +2084,6 @@ sub getAllUnknownUsers {
 
   $data ||= $this->{data};
 
-  return unless $data;
-
   my $wikiNames = Foswiki::Sandbox::untaintUnchecked($data->{UNKWNUSERS}) || '';
   my @wikiNames = split(/\s*,\s*/,$wikiNames);
   return \@wikiNames;
@@ -2148,8 +2122,6 @@ sub getAllUnknownGroups {
   my ($this, $data) = @_;
 
   $data ||= $this->{data};
-
-  return unless $data;
 
   my $wikiNames = Foswiki::Sandbox::untaintUnchecked($data->{UNKWNGROUPS}) || '';
   my @wikiNames = split(/\s*,\s*/,$wikiNames);
@@ -2314,7 +2286,7 @@ sub getGroup {
 
 Wrapper to use Unicode::MapUTF8 for Perl < 5.008
 and Encode for later versions.
-[adopted from I18N.pm]
+[adopted from <nop>I18N.pm]
 
 =cut
 
@@ -2358,7 +2330,7 @@ sub fromUtf8 {
 
 Wrapper to use Unicode::MapUTF8 for Perl < 5.008
 and Encode for later versions.
-[adopted from I18N.pm]
+[adopted from <nop>I18N.pm]
 
 =cut
 

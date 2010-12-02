@@ -201,7 +201,7 @@ sub checkPassword {
 
 =pod 
 
----++ readOnly() -> $boolean
+---++++ readOnly() -> $boolean
 
 we can change passwords, so return false
 
@@ -216,7 +216,7 @@ sub readOnly {
 
 =pod
 
----++ isManagingEmails() -> $boolean
+---++++ isManagingEmails() -> $boolean
 
 we are managing emails, but don't allow setting emails. alas the
 core does not distinguish this case, e.g. by using readOnly()
