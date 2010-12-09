@@ -1,5 +1,5 @@
-# ---+ User Logins
-# ---++ LDAP
+# ---+ Extensions
+# ---++ LDAP Contrib
 # This is the configuration used by the <b>LdapContrib</b> and the
 # <b>LdapNgPlugin</b>. 
 # <p>
