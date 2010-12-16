@@ -357,20 +357,16 @@ sub eachGroupMember {
       $seen ||= {};
       unless ($seen->{$groupName}) {
         $seen->{$groupName} = 1;
-        if ($expand) {
-          foreach my $login (@$members) {
-            if ($this->isGroup($login)) {
-              my $it = $this->eachGroupMember($login, $options, $seen);
-              while ($it->hasNext()) {
-                push @$result, $it->next;
-              }
-            } else {
-              my $cUID = $this->login2cUID($login);
-              push @$result, $cUID if $cUID;
+        foreach my $login (@$members) {
+          if ($expand && $this->isGroup($login)) {
+            my $it = $this->eachGroupMember($login, $options, $seen);
+            while ($it->hasNext()) {
+              push @$result, $it->next;
             }
+          } else {
+            my $cUID = $this->login2cUID($login);
+            push @$result, $cUID if $cUID;
           }
-        } else {
-          $result = $members;
         }
       }
     }
