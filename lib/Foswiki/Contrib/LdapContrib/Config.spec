@@ -266,4 +266,4 @@ $Foswiki::cfg{Ldap}{PageSize} = 500;
 
 # **STRING 50**
 # Prevent certain names from being looked up in LDAP
-$Foswiki::cfg{Ldap}{Exclude} = 'WikiGuest, ProjectContributor, RegistrationAgent, UnknownUser, AdminGroup, NobodyGroup';
+$Foswiki::cfg{Ldap}{Exclude} = 'WikiGuest, ProjectContributor, RegistrationAgent, UnknownUser, AdminGroup, NobodyGroup, AdminUser, admin, guest';

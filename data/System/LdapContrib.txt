@@ -500,6 +500,7 @@ This work was partly sponsored by
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  16 Dec 2010: | implemented new =expand= feature of =GROUPINFO= found in newer foswikis |
 |  02 Dec 2010: | fixed glitch where IDs weren't extracted from the cache db |
 |  01 Dec 2010: | added workaround to make the Foswiki::Func API usable early enough in the processing chain; \
                   fixed the way name clashes are resolved to stabilize choices once made; \

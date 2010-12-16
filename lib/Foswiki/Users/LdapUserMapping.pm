@@ -329,13 +329,16 @@ returns a list iterator for all groups members
 =cut
 
 sub eachGroupMember {
-  my ($this, $groupName, $seen) = @_;
+  my ($this, $groupName, $options, $seen) = @_;
 
-  #writeDebug("called eachGroupMember($groupName)");
-  return $this->SUPER::eachGroupMember($groupName) 
+  writeDebug("called eachGroupMember($groupName)");
+  return $this->SUPER::eachGroupMember($groupName, $options) 
     unless $this->{ldap}{mapGroups};
 
-  my $result = $this->{eachGroupMember}{$groupName};
+  my $expand = $options->{expand};
+  $expand = 1 unless defined $expand;
+
+  my $result = $this->{"eachGroupMember::$expand"}{$groupName};
 
   unless (defined $result) {
     $result = [];
@@ -348,27 +351,31 @@ sub eachGroupMember {
       if ($this->{ldap}{nativeGroupsBackoff} 
 	|| $groupName eq $Foswiki::cfg{SuperAdminGroup}) {
         #writeDebug("asking SUPER");
-	return $this->SUPER::eachGroupMember($groupName);
+	return $this->SUPER::eachGroupMember($groupName, $options);
       }
     } else {
       $seen ||= {};
       unless ($seen->{$groupName}) {
         $seen->{$groupName} = 1;
-        foreach my $login (@$members) {
-          if ($this->isGroup($login)) {
-            my $it = $this->eachGroupMember($login, $seen);
-            while ($it->hasNext()) {
-              push @$result, $it->next;
+        if ($expand) {
+          foreach my $login (@$members) {
+            if ($this->isGroup($login)) {
+              my $it = $this->eachGroupMember($login, $options, $seen);
+              while ($it->hasNext()) {
+                push @$result, $it->next;
+              }
+            } else {
+              my $cUID = $this->login2cUID($login);
+              push @$result, $cUID if $cUID;
             }
-          } else {
-            my $cUID = $this->login2cUID($login);
-            push @$result, $cUID if $cUID;
           }
+        } else {
+          $result = $members;
         }
       }
     }
 
-    $this->{eachGroupMember}{$groupName} = $result;
+    $this->{"eachGroupMember::$expand"}{$groupName} = $result;
   }
 
   return new Foswiki::ListIterator($result);
