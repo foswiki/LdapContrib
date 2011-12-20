@@ -1,15 +1,6 @@
 %META:TOPICINFO{author="ProjectContributor" date="1291110482" format="1.1" version="3"}%
 ---+!! %TOPIC%
-<!--
-
-   PLEASE DO NOT EDIT THIS TOPIC
-
-   It is automatically generated from the subversion repository, and any changes
-   you make will simply be overwritten the next time a release is generated.
-
-   Instead, you could check your fix in, raise a bug in the Bugs web, or mail the author.
--->
-%TOC{title="On this page"}%
+%TOC%
 ---++ Introduction
 <table style="float:right">
 <tr>
@@ -470,7 +461,11 @@ This file is easy to understand and should be modified with a text editor before
 time to reflect the specific settings required to connect your LDAP server.
 
 ---++ Implementation documentation
-%$POD%
+
+   * <a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::Contrib::LdapContrib">Foswiki::Contrib::LdapContrib</a>
+   * <a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::LoginManager::LdapApacheLogin">Foswiki::LoginManager::LdapApacheLogin</a>
+   * <a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::Users::LdapUserMapping">Foswiki::Users::LdapUserMapping</a>
+   * <a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::Users::LdapPasswdUser">Foswiki::Users::LdapPasswdUser</a>
 
 ---++ Dependencies
 %$DEPENDENCIES%
@@ -495,11 +490,12 @@ This work was partly sponsored by
    * [[http://www.testo.de][Testo]]
 
 |  Author: | Michael Daum |
-|  Copyright&nbsp;&copy;: | 2006-2010 Michael Daum http://michaeldaumconsulting.com |
+|  Copyright&nbsp;&copy;: | 2006-2011 Michael Daum http://michaeldaumconsulting.com |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  20 Dec 2011: | fixes deep recursion when adding !AdminGroup to !AdminGroup; fixed sizelimit not properly being applied to ldap query; disabled expensive debug message |
 |  16 Dec 2010: | implemented new =expand= feature of =GROUPINFO= found in newer foswikis |
 |  02 Dec 2010: | fixed glitch where IDs weren't extracted from the cache db |
 |  01 Dec 2010: | added workaround to make the Foswiki::Func API usable early enough in the processing chain; \

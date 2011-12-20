@@ -28,7 +28,7 @@ use vars qw($isLoadedMapping);
 
 =pod
 
----+++ Foswiki::Users::LdapUserMapping
+---+ Foswiki::Users::LdapUserMapping
 
 This class allows to use user names and groups stored in an LDAP
 database inside Foswiki in a transparent way. This replaces Foswiki's
@@ -39,7 +39,7 @@ according LDAP records.
 
 =pod 
 
----++++ new($session) -> $ldapUserMapping
+---++ new($session) -> $ldapUserMapping
 
 create a new Foswiki::Users::LdapUserMapping object and constructs an <nop>LdapContrib
 object to delegate LDAP services to.
@@ -59,7 +59,7 @@ sub new {
 
 =pod
 
----++++ finish()
+---++ finish()
 
 Complete processing after the client's HTTP request has been responded
 to. I.e. it disconnects the LDAP database connection.
@@ -77,7 +77,7 @@ sub finish {
 
 =pod
 
----++++ writeDebug($msg) 
+---++ writeDebug($msg) 
 
 Static method to write a debug messages. 
 
@@ -90,7 +90,7 @@ sub writeDebug {
 
 =pod
 
----++++ addUser ($login, $wikiname, $password, $emails) -> $cUID
+---++ addUser ($login, $wikiname, $password, $emails) -> $cUID
 
 overrides and thus disables the SUPER method
 
@@ -107,7 +107,7 @@ sub addUser {
 
 =begin 
 
----++++ getLoginName ($cUID) -> $login
+---++ getLoginName ($cUID) -> $login
 
 Converts an internal cUID to that user's login
 (undef on failure)
@@ -137,7 +137,7 @@ sub getLoginName {
 
 =pod
 
----++++ getWikiName ($cUID) -> wikiname
+---++ getWikiName ($cUID) -> wikiname
 
 Maps a canonical user name to a wikiname
 
@@ -177,7 +177,7 @@ sub getWikiName {
 
 =pod 
 
----++++ getEmails($cUID) -> @emails
+---++ getEmails($cUID) -> @emails
 
 emails might be stored in the ldap account as well if
 the record is of type possixAccount and inetOrgPerson.
@@ -213,7 +213,7 @@ sub getEmails {
 
 =pod
 
----++++ userExists($cUID) -> $boolean
+---++ userExists($cUID) -> $boolean
 
 Determines if the user already exists or not. 
 
@@ -242,7 +242,7 @@ sub userExists {
 
 =pod
 
----++++ eachUser () -> listIterator of cUIDs
+---++ eachUser () -> listIterator of cUIDs
 
 returns a list iterator for all known users
 
@@ -270,7 +270,7 @@ sub eachUser {
 
 =pod
 
----++++ eachGroup () -> listIterator of groupnames
+---++ eachGroup () -> listIterator of groupnames
 
 returns a list iterator for all known groups
 
@@ -286,7 +286,7 @@ sub eachGroup {
 
 =pod
 
----++++ getListOfGroups( ) -> @listOfUserObjects
+---++ getListOfGroups( ) -> @listOfUserObjects
 
 Get a list of groups defined in the LDAP database. If 
 =nativeGroupsBackoff= is defined the set of LDAP and native groups will
@@ -322,14 +322,14 @@ sub getListOfGroups {
 
 =pod
 
----++++ eachGroupMember ($groupName) ->  listIterator of cUIDs
+---++ eachGroupMember ($groupName) ->  listIterator of cUIDs
 
 returns a list iterator for all groups members
 
 =cut
 
 sub eachGroupMember {
-  my ($this, $groupName, $options, $seen) = @_;
+  my ($this, $groupName, $options) = @_;
 
   writeDebug("called eachGroupMember($groupName)");
   return $this->SUPER::eachGroupMember($groupName, $options) 
@@ -343,23 +343,27 @@ sub eachGroupMember {
   unless (defined $result) {
     $result = [];
 
-    my $members = $this->{ldap}->getGroupMembers($groupName) || [];
+    # prevent deep recursion
+    $this->{_seen} ||= {};
 
-    unless (@$members) {
-      # fallback to native groups,
-      # try also to find the SuperAdminGroup
-      if ($this->{ldap}{nativeGroupsBackoff} 
-	|| $groupName eq $Foswiki::cfg{SuperAdminGroup}) {
-        #writeDebug("asking SUPER");
-	return $this->SUPER::eachGroupMember($groupName, $options);
-      }
-    } else {
-      $seen ||= {};
-      unless ($seen->{$groupName}) {
-        $seen->{$groupName} = 1;
+    unless ($this->{_seen}{$groupName}) {
+      $this->{_seen}{$groupName} = 1;
+
+      my $members = $this->{ldap}->getGroupMembers($groupName) || [];
+
+      unless (@$members) {
+        # fallback to native groups,
+        # try also to find the SuperAdminGroup
+        if ($this->{ldap}{nativeGroupsBackoff} 
+          || $groupName eq $Foswiki::cfg{SuperAdminGroup}) {
+          #writeDebug("asking SUPER");
+          my $listResult = $this->SUPER::eachGroupMember($groupName, $options);
+          $result = [$listResult->all] if $listResult;
+        }
+      } else {
         foreach my $login (@$members) {
           if ($expand && $this->isGroup($login)) {
-            my $it = $this->eachGroupMember($login, $options, $seen);
+            my $it = $this->eachGroupMember($login, $options);
             while ($it->hasNext()) {
               push @$result, $it->next;
             }
@@ -371,6 +375,7 @@ sub eachGroupMember {
       }
     }
 
+    $this->{_seen} = {};
     $this->{"eachGroupMember::$expand"}{$groupName} = $result;
   }
 
@@ -379,7 +384,7 @@ sub eachGroupMember {
 
 =pod
 
----++++ eachMembership ($cUID) -> listIterator of groups this user is in
+---++ eachMembership ($cUID) -> listIterator of groups this user is in
 
 returns a list iterator for all groups a user is in.
 
@@ -400,7 +405,7 @@ sub eachMembership {
 
 =pod
 
----++++ isGroup($user) -> $boolean
+---++ isGroup($user) -> $boolean
 
 Establish if a user object refers to a user group or not.
 This returns true for the <nop>SuperAdminGroup or
@@ -440,7 +445,7 @@ sub isGroup {
 
 =pod
 
----++++ findUserByEmail( $email ) -> \@cUIDs
+---++ findUserByEmail( $email ) -> \@cUIDs
    * =$email= - email address to look up
 
 Return a list of canonical user names for the users that have this email
@@ -456,7 +461,7 @@ sub findUserByEmail {
 
 =pod 
 
----++++ findUserByWikiName ($wikiName) -> list of cUIDs associated with that wikiname
+---++ findUserByWikiName ($wikiName) -> list of cUIDs associated with that wikiname
 
 See baseclass for documentation
 
@@ -483,7 +488,7 @@ sub findUserByWikiName {
 
 =pod
 
----++++ handlesUser($cUID, $login, $wikiName) -> $boolean
+---++ handlesUser($cUID, $login, $wikiName) -> $boolean
 
 Called by the Foswiki::Users object to determine which loaded mapping
 to use for a given user.
@@ -508,12 +513,12 @@ sub handlesUser {
   $cUID = $this->login2cUID($login) if !$cUID && $login;
   return 1 if defined $cUID && $this->userExists($cUID);
 
-  return 0;
+  return $this->SUPER::handlesUser($cUID, $login, $wikiName);
 }
 
 =pod
 
----++++ login2cUID($loginName, $dontcheck) -> $cUID
+---++ login2cUID($loginName, $dontcheck) -> $cUID
 
 Convert a login name to the corresponding canonical user name. The
 canonical name can be any string of 7-bit alphanumeric and underscore
@@ -545,7 +550,7 @@ sub login2cUID {
 
 =pod
 
----++++ groupAllowsChange($group, $cuid) -> boolean
+---++ groupAllowsChange($group, $cuid) -> boolean
 
 normally, ldap-groups are read-only as they are maintained
 using ldap-specific tools.

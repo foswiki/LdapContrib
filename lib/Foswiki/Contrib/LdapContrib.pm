@@ -1,6 +1,6 @@
 # Module of Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# Copyright (C) 2006-2010 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2006-2011 Michael Daum http://michaeldaumconsulting.com
 # Portions Copyright (C) 2006 Spanlink Communications
 #
 # This program is free software; you can redistribute it and/or
@@ -29,18 +29,18 @@ use Foswiki::Plugins ();
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev: 4426 (2009-07-03) $';
-$RELEASE = '4.31';
+$RELEASE = '4.32';
 
 =pod
 
----+++ Foswiki::Contrib::LdapContrib
+---+ Foswiki::Contrib::LdapContrib
 
 General LDAP services module. This class encapsulates the platform-specific
 means to integrate an LDAP directory service.  Used by Foswiki::Users::LdapPasswdUser
 for authentication, Foswiki::Users::LdapUserMapping for group definitions and
 Foswiki:Plugins/LdapNgPlugin to interface general query services.
 
----++++ Typical usage
+---++ Typical usage
 <verbatim>
 my $ldap = new Foswiki::Contrib::LdapContrib;
 
@@ -56,7 +56,7 @@ my $value = $entry->get_value('cn');
 my @emails = $entry->get_value('mail');
 </verbatim>
 
----++++ Cache storage format
+---++ Cache storage format
 
 The cache stores a series of key-value pairs in a DB_File. The following
 keys are used:
@@ -79,7 +79,7 @@ keys are used:
 
 =pod
 
----++++ writeDebug($msg) 
+---++ writeDebug($msg) 
 
 Static Method to write a debug messages. 
 
@@ -92,7 +92,7 @@ sub writeDebug {
 
 =pod
 
----++++ writeWarning($msg) 
+---++ writeWarning($msg) 
 
 Static Method to write a warning messages. 
 
@@ -105,7 +105,7 @@ sub writeWarning {
 
 =pod
 
----++++ new($session, host=>'...', base=>'...', ...) -> $ldap
+---++ new($session, host=>'...', base=>'...', ...) -> $ldap
 
 Construct a new Foswiki::Contrib::LdapContrib object
 
@@ -276,7 +276,7 @@ sub new {
 
 =pod
 
----++++ getLdapContrib($session) -> $ldap
+---++ getLdapContrib($session) -> $ldap
 
 Returns a standard singleton Foswiki::Contrib::LdapContrib object based on the site-wide
 configuration. 
@@ -298,7 +298,7 @@ sub getLdapContrib {
 
 =pod
 
----++++ connect($login, $passwd) -> $boolean
+---++ connect($login, $passwd) -> $boolean
 
 Connect to LDAP server. If a $login name and a $passwd is given then a bind is done.
 Otherwise the communication is anonymous. You don't have to connect() explicitely
@@ -382,7 +382,7 @@ sub connect {
 
 =pod
 
----++++ disconnect()
+---++ disconnect()
 
 Unbind the LDAP object from the server. This method can be used to force
 a reconnect and possibly rebind as a different user.
@@ -402,7 +402,7 @@ sub disconnect {
 
 =pod
 
----++++ finish()
+---++ finish()
 
 finalize this ldap object.
 
@@ -426,7 +426,7 @@ sub finish {
 
 =pod
 
----++++ checkError($msg) -> $errorCode
+---++ checkError($msg) -> $errorCode
 
 Private method to check a Net::LDAP::Message object for an error, sets
 $ldap->{error} and returns the ldap error code. This method is called
@@ -438,7 +438,7 @@ $ldap->getError() to return the actual error message.
 sub checkError {
   my ($this, $msg) = @_;
 
-  my $code = $msg->code();
+  my $code = $this->{code} = $msg->code();
   if ($code == LDAP_SUCCESS) {
     $this->{error} = undef;
   } else {
@@ -451,7 +451,7 @@ sub checkError {
 
 =pod
 
----++++ getError() -> $errorMsg
+---++ getError() -> $errorMsg
 
 Returns the error message of the last LDAP action or undef it no
 error occured.
@@ -459,14 +459,24 @@ error occured.
 =cut
 
 sub getError {
-  my $this = shift;
-  return $this->{error};
+  return $_[0]->{error};
 }
-
 
 =pod
 
----++++ getAccount($login) -> Net::LDAP::Entry object
+---++ getCode() -> $errorCode
+
+Returns the error code of the last LDAP action
+
+=cut
+
+sub getCode {
+  return $_[0]->{code};
+}
+
+=pod
+
+---++ getAccount($login) -> Net::LDAP::Entry object
 
 Fetches an account entry from the database and returns a Net::LDAP::Entry
 object on success and undef otherwise. Note, the login name is match against
@@ -504,11 +514,11 @@ sub getAccount {
 
 =pod
 
----++++ search($filter, %args) -> $msg
+---++ search($filter, %args) -> $msg
 
 Returns an Net::LDAP::Search object for the given query on success and undef
 otherwise. If $args{base} is not defined $ldap->{base} is used.  If $args{scope} is not
-defined 'sub' is used (searching down the subtree under $args{base}. If no $args{limit} is
+defined 'sub' is used (searching down the subtree under $args{base}. If no $args{sizelimit} is
 set all matching records are returned.  The $attrs is a reference to an array
 of all those attributes that matching entries should contain.  If no $args{attrs} is
 defined all attributes are returned.
@@ -528,13 +538,13 @@ sub search {
 
   $args{base} = $this->{base} unless $args{base};
   $args{scope} = 'sub' unless $args{scope};
-  $args{limit} = 0 unless $args{limit};
+  $args{sizelimit} = 0 unless $args{sizelimit};
   $args{attrs} = ['*'] unless $args{attrs};
   $args{filter} = $this->toUtf8($args{filter}) if $args{filter};
 
   if ($Foswiki::cfg{Ldap}{Debug}) {
     my $attrString = join(',', @{$args{attrs}});
-    writeDebug("called search(filter=$args{filter}, base=$args{base}, scope=$args{scope}, limit=$args{limit}, attrs=$attrString)");
+    writeDebug("called search(filter=$args{filter}, base=$args{base}, scope=$args{scope}, sizelimit=$args{sizelimit}, attrs=$attrString)");
   }
 
   unless ($this->{ldap}) {
@@ -547,9 +557,9 @@ sub search {
   my $msg = $this->{ldap}->search(%args);
   my $errorCode = $this->checkError($msg);
 
-  # we set a limit so it is ok that it exceeds
-  if ($args{limit} && $errorCode == LDAP_SIZELIMIT_EXCEEDED) {
-    writeDebug("limit exceeded");
+  # we set a sizelimit so it is ok that it exceeds
+  if ($args{sizelimit} && $errorCode == LDAP_SIZELIMIT_EXCEEDED) {
+    writeDebug("sizelimit exceeded");
     return $msg;
   }
   
@@ -564,7 +574,7 @@ sub search {
 
 =pod
 
----++++ cacheBlob($entry, $attribute, $refresh) -> $pubUrlPath
+---++ cacheBlob($entry, $attribute, $refresh) -> $pubUrlPath
 
 Takes an Net::LDAP::Entry and an $attribute name, and stores its value into a
 file. Returns the pubUrlPath to it. This can be used to store binary large
@@ -614,7 +624,7 @@ sub cacheBlob {
 
 =pod
 
----++++ initCache()
+---++ initCache()
 
 loads/connects to the LDAP cache
 
@@ -666,7 +676,7 @@ sub initCache {
 
 =pod
 
----++++ refreshCache($mode) -> $boolean
+---++ refreshCache($mode) -> $boolean
 
 download all relevant records from the LDAP server and
 store it into a database.
@@ -708,7 +718,7 @@ sub refreshCache {
       $isOk = $this->refreshGroupsCache(\%tempData);
     }
 
-    if (!$isOk) { # we had an error: keep the old cache til the error is resolved
+    unless ($isOk) { # we had an error: keep the old cache til the error is resolved
       undef $tempCache;
       untie %tempData;
       unlink $tempCacheFile;
@@ -741,7 +751,7 @@ sub refreshCache {
 
 =pod
 
----++++ refreshUsersCache($data) -> $boolean
+---++ refreshUsersCache($data) -> $boolean
 
 download all user records from the LDAP server and cache it into the
 given hash reference
@@ -775,8 +785,9 @@ sub refreshUsersCache {
     require Net::LDAP::Control::Paged;
     $page = Net::LDAP::Control::Paged->new(size => $this->{pageSize});
     push(@args, control => [$page]);
+    writeDebug("reading users from cache with page size=$this->{pageSize}");
   } else {
-    #writeDebug("reading users from cache in one chunk");
+    writeDebug("reading users from cache in one chunk");
   }
 
   # read pages
@@ -789,9 +800,8 @@ sub refreshUsersCache {
     # perform search
     my $mesg = $this->search(@args);
     unless ($mesg) {
-      writeDebug("oops, no result querying for users");
       writeWarning("error refreshing the user cache: ".$this->getError());
-      $gotError = 1;
+      $gotError = 1 unless $this->getCode() == LDAP_SIZELIMIT_EXCEEDED; # continue on sizelimit exceeded
       last;
     }
 
@@ -835,14 +845,14 @@ sub refreshUsersCache {
   $data->{WIKINAMES} = join(',', keys %wikiNames);
   $data->{LOGINNAMES} = join(',', keys %loginNames);
 
-  #writeDebug("got $nrRecords keys in cache");
+  writeDebug("got $nrRecords keys in cache");
 
   return 1;
 }
 
 =pod
 
----++++ resolveWikiNameClashes($data, %wikiNames, %loginNames) -> $integer
+---++ resolveWikiNameClashes($data, %wikiNames, %loginNames) -> $integer
 
 if there have been name clashes during cacheIserFromEntry() those entry records
 have not yet been added to the cache. They are kept until all clashes have been
@@ -898,7 +908,7 @@ sub resolveWikiNameClashes {
 
 =pod
 
----++++ refreshGroups($data) -> $boolean
+---++ refreshGroups($data) -> $boolean
 
 download all group records from the LDAP server
 
@@ -1031,7 +1041,7 @@ sub refreshGroupsCache {
 
 =pod
 
----++++ cacheUserFromEntry($entry, $data, $wikiNames, $loginNames, $wikiName) -> $boolean
+---++ cacheUserFromEntry($entry, $data, $wikiNames, $loginNames, $wikiName) -> $boolean
 
 store a user LDAP::Entry to our internal cache 
 
@@ -1242,7 +1252,7 @@ sub cacheUserFromEntry {
 
 =pod
 
----++++ cacheGroupFromEntry($entry, $data, $groupNames) -> $boolean
+---++ cacheGroupFromEntry($entry, $data, $groupNames) -> $boolean
 
 store a group LDAP::Entry to our internal cache 
 
@@ -1353,7 +1363,7 @@ sub cacheGroupFromEntry {
 
 =pod 
 
----++++ normalizeWikiName($name) -> $string
+---++ normalizeWikiName($name) -> $string
 
 normalizes a string to form a proper <nop>WikiName
 
@@ -1385,7 +1395,7 @@ sub normalizeWikiName {
 
 =pod 
 
----++++ normalizeLoginName($name) -> $string
+---++ normalizeLoginName($name) -> $string
 
 normalizes a string to form a proper login
 
@@ -1404,7 +1414,7 @@ sub normalizeLoginName {
 
 =pod
 
----++++ transliterate($string) -> $string
+---++ transliterate($string) -> $string
 
 transliterate some essential utf8 chars to a common replacement
 in latin1 encoding. the list above is not exhaustive.
@@ -1587,7 +1597,7 @@ sub transliterate {
 
 =pod
 
----++++ getGroupNames($data) -> @array
+---++ getGroupNames($data) -> @array
 
 Returns a list of known group names.
 
@@ -1608,7 +1618,7 @@ sub getGroupNames {
 
 =pod
 
----++++ isGroup($wikiName, $data) -> $boolean
+---++ isGroup($wikiName, $data) -> $boolean
 
 check if a given user is an ldap group actually
 
@@ -1636,7 +1646,7 @@ sub isGroup {
 
 =pod
 
----++++ getEmails($login, $data) -> @emails
+---++ getEmails($login, $data) -> @emails
 
 fetch emails from LDAP
 
@@ -1656,7 +1666,7 @@ sub getEmails {
 
 =pod
 
----++++ getLoginOfEmail($email, $data) \@users
+---++ getLoginOfEmail($email, $data) \@users
 
 get all users matching a given email address
 
@@ -1675,7 +1685,7 @@ sub getLoginOfEmail {
 
 =pod
 
----++++ getGroupMembers($groupName, $data) -> \@array
+---++ getGroupMembers($groupName, $data) -> \@array
 
 =cut
 
@@ -1700,7 +1710,7 @@ sub getGroupMembers {
 
 =pod
 
----++++ isGroupMember($loginName, $groupName, $data) -> $boolean
+---++ isGroupMember($loginName, $groupName, $data) -> $boolean
 
 check if a given user is member of an ldap group
 
@@ -1723,7 +1733,7 @@ sub isGroupMember {
 
 =pod 
 
----++++ getWikiNameOfLogin($loginName, $data) -> $wikiName
+---++ getWikiNameOfLogin($loginName, $data) -> $wikiName
 
 returns the wikiName of a loginName or undef if it does not exist
 
@@ -1746,7 +1756,7 @@ sub getWikiNameOfLogin {
 
 =pod 
 
----++++ getLoginOfWikiName($wikiName, $data) -> $loginName
+---++ getLoginOfWikiName($wikiName, $data) -> $loginName
 
 returns the loginNAme of a wikiName or undef if it does not exist
 
@@ -1770,7 +1780,7 @@ sub getLoginOfWikiName {
 
 =pod 
 
----++++ getAllWikiNames($data) -> \@array
+---++ getAllWikiNames($data) -> \@array
 
 returns a list of all known wikiNames
 
@@ -1788,7 +1798,7 @@ sub getAllWikiNames {
 
 =pod 
 
----++++ getAllLoginNames($data) -> \@array
+---++ getAllLoginNames($data) -> \@array
 
 returns a list of all known loginNames
 
@@ -1806,7 +1816,7 @@ sub getAllLoginNames {
 
 =pod 
 
----++++ getDnOfLogin($loginName, $data) -> $dn
+---++ getDnOfLogin($loginName, $data) -> $dn
 
 returns the Distinguished Name of the LDAP record of the given name
 
@@ -1824,7 +1834,7 @@ sub getDnOfLogin {
 
 =pod 
 
----++++ getDnOfWikiName($wikiName, $data) -> $dn
+---++ getDnOfWikiName($wikiName, $data) -> $dn
 
 returns the Distinguished Name of the LDAP record of the given name
 
@@ -1846,7 +1856,7 @@ sub getDnOfWikiName {
 
 =pod 
 
----++++ getWikiNameOfDn($dn, $data) -> $wikiName
+---++ getWikiNameOfDn($dn, $data) -> $wikiName
 
 returns the wikiName used by a given Distinguished Name; reverse of getDnOfWikiName()
 
@@ -1868,7 +1878,7 @@ sub getWikiNameOfDn {
 
 =pod 
 
----++++ changePassword($loginName, $newPassword, $oldPassword) -> $boolean
+---++ changePassword($loginName, $newPassword, $oldPassword) -> $boolean
 
 =cut
 
@@ -1900,7 +1910,7 @@ sub changePassword {
 
 =pod
 
----++++ checkCacheForLoginName($loginName, $data) -> $boolean
+---++ checkCacheForLoginName($loginName, $data) -> $boolean
 
 grant that the current loginName is cached. If not, it will download the LDAP
 record for this specific user and update the LDAP cache with this single record.
@@ -1959,7 +1969,7 @@ sub checkCacheForLoginName {
 
 =pod
 
----++++ removeGroupFromCache($groupName, $data) -> $boolean
+---++ removeGroupFromCache($groupName, $data) -> $boolean
 
 Remove a group from the cache
 
@@ -1988,7 +1998,7 @@ sub removeGroupFromCache {
 
 =pod
 
----++++ removeUserFromCache($wikiName, $data) -> $boolean
+---++ removeUserFromCache($wikiName, $data) -> $boolean
 
 removes a wikiName from the cache
 
@@ -2028,7 +2038,7 @@ sub removeUserFromCache {
 
 =begin text
 
----++++ renameWikiName($loginName, $oldWikiName, $newWikiName) 
+---++ renameWikiName($loginName, $oldWikiName, $newWikiName) 
 
 assigns the new !WikiName to the given login
 
@@ -2056,7 +2066,7 @@ sub renameWikiName {
 
 =pod 
 
----++++ addIgnoredUser($loginName, $data) -> \@array
+---++ addIgnoredUser($loginName, $data) -> \@array
 
 Insert a new user in the list of unknown users that should not be lookedup in LDAP
 
@@ -2073,7 +2083,7 @@ sub addIgnoredUser {
 
 =pod 
 
----++++ getAllUnknownUsers($data) -> \@array
+---++ getAllUnknownUsers($data) -> \@array
 
 returns a list of all unknown users that should not be relookedup in LDAP
 
@@ -2091,7 +2101,7 @@ sub getAllUnknownUsers {
 
 =pod 
 
----++++ addIgnoredGroup($groupName, $data) -> \@array
+---++ addIgnoredGroup($groupName, $data) -> \@array
 
 Insert a new group in the list of unknown groups that should not be lookedup in LDAP
 
@@ -2112,7 +2122,7 @@ sub addIgnoredGroup {
 
 =pod 
 
----++++ getAllUnknownGroups($data) -> \@array
+---++ getAllUnknownGroups($data) -> \@array
 
 returns a list of all unknown groups that should not be relookedup in LDAP
 
@@ -2130,7 +2140,7 @@ sub getAllUnknownGroups {
 
 =pod
 
----++++ checkCacheForLoginName($groupName, $data) -> $boolean
+---++ checkCacheForLoginName($groupName, $data) -> $boolean
 
 grant that the current groupName is cached. If not, it will download the LDAP
 record for this specific group and its subgroups and update the LDAP cache with the retreived records.
@@ -2244,7 +2254,7 @@ sub checkCacheForGroupName {
 
 =pod
 
----++++ getGroup($groupName) -> Net::LDAP::Entry object
+---++ getGroup($groupName) -> Net::LDAP::Entry object
 
 Fetches a group entry from the database and returns a Net::LDAP::Entry
 object on success and undef otherwise. Note, the group name is match against
@@ -2282,7 +2292,7 @@ sub getGroup {
 
 =pod
 
----++++ fromUtf8($string) -> $string
+---++ fromUtf8($string) -> $string
 
 Wrapper to use Unicode::MapUTF8 for Perl < 5.008
 and Encode for later versions.
@@ -2326,7 +2336,7 @@ sub fromUtf8 {
 
 =begin text
 
----++++ toUtf8($string) -> $utf8string
+---++ toUtf8($string) -> $utf8string
 
 Wrapper to use Unicode::MapUTF8 for Perl < 5.008
 and Encode for later versions.

@@ -27,7 +27,7 @@ use Foswiki::ListIterator ();
 
 =pod
 
----+++ Foswiki::Users::LdapPassdUser
+---+ Foswiki::Users::LdapPassdUser
 
 Password manager that uses Net::LDAP to manage users and passwords.
 
@@ -45,7 +45,7 @@ Configuration: add the following variables to your <nop>LocalSite.cfg
 
 =pod
 
----++++ new($session) -> $ldapUser
+---++ new($session) -> $ldapUser
 
 Takes a session object, creates an LdapContrib object used to
 delegate LDAP calls and returns a new Foswiki::User::LdapPasswd object
@@ -70,7 +70,7 @@ sub new {
 
 =pod
 
----++++ error() -> $errorMsg
+---++ error() -> $errorMsg
 
 return the last error during LDAP operations
 
@@ -84,7 +84,7 @@ sub error {
 
 =pod
 
----++++ writeDebug($msg) 
+---++ writeDebug($msg) 
 
 Static method to write a debug messages. 
 
@@ -97,7 +97,7 @@ sub writeDebug {
 
 =pod 
 
----++++ fetchPass($login) -> $passwd
+---++ fetchPass($login) -> $passwd
 
 this method is used most of the time to detect if a given
 login user is known to the database. the concrete (encrypted) password 
@@ -142,7 +142,7 @@ sub fetchPass {
 
 =pod 
 
----++++ userExists($name) -> $boolean
+---++ userExists($name) -> $boolean
 
 returns true if the login or wikiname exists in the database;
 that's performing better than fetching the password and then
@@ -172,7 +172,7 @@ sub userExists {
 
 =pod 
 
----++++ checkPassword($login, $password) -> $boolean
+---++ checkPassword($login, $password) -> $boolean
 
 check passwd by binding to the ldap server
 
@@ -181,14 +181,14 @@ check passwd by binding to the ldap server
 sub checkPassword {
   my ($this, $login, $passU) = @_;
 
-  #writeDebug("called checkPassword($login, passU)");
+  writeDebug("called checkPassword($login, passU)");
 
   # guest has no password
   return 1 if $login eq $Foswiki::cfg{DefaultUserWikiName};
 
   # get user record
   my $dn = $this->{ldap}->getDnOfLogin($login);
-  #writeDebug("dn not found") unless $dn;
+  writeDebug("dn not found") unless $dn;
 
   return $this->{ldap}->connect($dn, $passU)
     if $dn;
@@ -201,7 +201,7 @@ sub checkPassword {
 
 =pod 
 
----++++ readOnly() -> $boolean
+---++ readOnly() -> $boolean
 
 we can change passwords, so return false
 
@@ -216,7 +216,7 @@ sub readOnly {
 
 =pod
 
----++++ isManagingEmails() -> $boolean
+---++ isManagingEmails() -> $boolean
 
 we are managing emails, but don't allow setting emails. alas the
 core does not distinguish this case, e.g. by using readOnly()
@@ -229,7 +229,7 @@ sub isManagingEmails {
 
 =pod 
 
----++++ getEmails($login) -> @emails
+---++ getEmails($login) -> @emails
 
 emails might be stored in the ldap account as well if
 the record is of type possixAccount and inetOrgPerson.
@@ -256,7 +256,7 @@ sub getEmails {
 
 =pod 
 
----++++ finish()
+---++ finish()
 
 Complete processing after the client's HTTP request has been responded.
 i.e. destroy the ldap object.
@@ -275,7 +275,7 @@ sub finish {
 
 =pod
 
----++++ removeUser( $user ) -> $boolean
+---++ removeUser( $user ) -> $boolean
 
 LDAP users can't be removed from within the engine.
 So this will call the deleteUser interface of the secondary
@@ -297,7 +297,7 @@ sub removeUser {
 
 =pod
 
----++++ passwd( $user, $newPassword, $newPassword ) -> $boolean
+---++ passwd( $user, $newPassword, $newPassword ) -> $boolean
 
 TODO: API missmatch
 
@@ -335,7 +335,7 @@ sub passwd {
 
 =pod
 
----++++ encrypt( $user, $passwordU, $fresh ) -> $passwordE
+---++ encrypt( $user, $passwordU, $fresh ) -> $passwordE
 
 LDAP can't encrypt passwords. But maybe the secondary
 password manager can.
@@ -355,7 +355,7 @@ sub encrypt {
 
 =pod
 
----++++ setPassword( $login, $newPassU, $oldPassU ) -> $boolean
+---++ setPassword( $login, $newPassU, $oldPassU ) -> $boolean
 
 If the $oldPassU matches matches the user's password, then it will
 replace it with $newPassU.
@@ -388,7 +388,7 @@ sub setPassword {
 
 =pod
 
----++++ setEmails($user, @emails)
+---++ setEmails($user, @emails)
 
 Set the email address(es) for the given username.
 The engine can't set the email stored in LDAP. But may be the secondary
@@ -408,7 +408,7 @@ sub setEmails {
 
 =pod
 
----++++ findUserByEmail( $email ) -> \@users
+---++ findUserByEmail( $email ) -> \@users
    * =$email= - email address to look up
 Return a list of user objects for the users that have this email registered
 with the password manager. This will concatenate the result list of the
@@ -438,7 +438,7 @@ sub findUserByEmail {
 
 =pod 
 
----++++ canFetchUsers() -> boolean
+---++ canFetchUsers() -> boolean
 
 returns true, as we can fetch users
 
@@ -450,9 +450,9 @@ sub canFetchUsers {
 
 =pod 
 
----++++ fetchUsers() -> new Foswiki::ListIterator(\@users)
+---++ fetchUsers() -> new Foswiki::ListIterator(\@users)
 
-returns a FoswikiIterator of loginnames 
+returns a Foswiki::ListIterator of loginnames 
 
 =cut
 
@@ -460,7 +460,7 @@ sub fetchUsers {
   my $this = shift;
 
   my $users = $this->{ldap}->getAllLoginNames();
-  print STDERR "fetchUsers=".join(',', @$users)."\n";
+  #print STDERR "fetchUsers=".join(',', @$users)."\n";
   return new Foswiki::ListIterator($users);
 }
 
