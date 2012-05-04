@@ -22,8 +22,8 @@ our @ISA = qw( Foswiki::Users::Password );
 use strict;
 
 use Foswiki::Contrib::LdapContrib ();
-use Foswiki::Plugins ();
-use Foswiki::ListIterator ();
+use Foswiki::Plugins              ();
+use Foswiki::ListIterator         ();
 
 =pod
 
@@ -53,19 +53,19 @@ delegate LDAP calls and returns a new Foswiki::User::LdapPasswd object
 =cut
 
 sub new {
-  my ($class, $session) = @_;
+    my ( $class, $session ) = @_;
 
-  my $this = bless($class->SUPER::new( $session ), $class);
-  $this->{ldap} = &Foswiki::Contrib::LdapContrib::getLdapContrib($session);
+    my $this = bless( $class->SUPER::new($session), $class );
+    $this->{ldap} = &Foswiki::Contrib::LdapContrib::getLdapContrib($session);
 
-  my $secondaryImpl = $this->{ldap}->{secondaryPasswordManager};
-  if ($secondaryImpl) {
-    eval "use $secondaryImpl";
-    die "Secondary Password Manager: $@" if $@;
-    $this->{secondaryPasswordManager} = $secondaryImpl->new($session);
-  }
+    my $secondaryImpl = $this->{ldap}->{secondaryPasswordManager};
+    if ($secondaryImpl) {
+        eval "use $secondaryImpl";
+        die "Secondary Password Manager: $@" if $@;
+        $this->{secondaryPasswordManager} = $secondaryImpl->new($session);
+    }
 
-  return $this;
+    return $this;
 }
 
 =pod
@@ -77,9 +77,9 @@ return the last error during LDAP operations
 =cut
 
 sub error {
-  my $this = shift;
-  $this->{error} = $this->{ldap}->getError();
-  return return $this->{error};
+    my $this = shift;
+    $this->{error} = $this->{ldap}->getError();
+    return return $this->{error};
 }
 
 =pod
@@ -91,9 +91,8 @@ Static method to write a debug messages.
 =cut
 
 sub writeDebug {
-  print STDERR "- LdapPasswdUser - $_[0]\n" if $Foswiki::cfg{Ldap}{Debug};
+    print STDERR "- LdapPasswdUser - $_[0]\n" if $Foswiki::cfg{Ldap}{Debug};
 }
-
 
 =pod 
 
@@ -106,38 +105,38 @@ is of no interest: so better use userExists() for that
 =cut
 
 sub fetchPass {
-  my ($this, $login) = @_;
+    my ( $this, $login ) = @_;
 
-  #writeDebug("called fetchPass($login)");
+    #writeDebug("called fetchPass($login)");
 
-  # try to find out if foswiki calls this functio as part
-  # of an existence check. fetching the actual password of
-  # a user is more expensive than just checking the existence
-  # the _user_exists context is set in LdapUserMapping::userExists()
-  # when backing off to native groups anyway
-  return $this->userExists($login) 
-    if $this->{session}->inContext("_user_exists");
+    # try to find out if foswiki calls this functio as part
+    # of an existence check. fetching the actual password of
+    # a user is more expensive than just checking the existence
+    # the _user_exists context is set in LdapUserMapping::userExists()
+    # when backing off to native groups anyway
+    return $this->userExists($login)
+      if $this->{session}->inContext("_user_exists");
 
-  # foswiki tends to feed all sorts of strings to fetchPass,
-  # let's try to filter out some of the siliest cases
-  if ($this->{session}->{users}->isGroup($login)) {
-    return undef;
-  }
+    # foswiki tends to feed all sorts of strings to fetchPass,
+    # let's try to filter out some of the siliest cases
+    if ( $this->{session}->{users}->isGroup($login) ) {
+        return undef;
+    }
 
-  my $passwd = $this->{passwords}{$login};
+    my $passwd = $this->{passwords}{$login};
 
-  unless (defined $passwd) {
-    my $entry = $this->{ldap}->getAccount($login); # expensive
+    unless ( defined $passwd ) {
+        my $entry = $this->{ldap}->getAccount($login);    # expensive
 
-    $passwd = $entry->get_value('userPassword') if $entry;
-    $passwd = $this->{secondaryPasswordManager}->fetchPass($login)
-      if !defined($passwd) && $this->{secondaryPasswordManager};
+        $passwd = $entry->get_value('userPassword') if $entry;
+        $passwd = $this->{secondaryPasswordManager}->fetchPass($login)
+          if !defined($passwd) && $this->{secondaryPasswordManager};
 
-    $passwd = 0 unless defined $passwd;
-    $this->{passwords}{$login} = $passwd;
-  }
+        $passwd = 0 unless defined $passwd;
+        $this->{passwords}{$login} = $passwd;
+    }
 
-  return $passwd;
+    return $passwd;
 }
 
 =pod 
@@ -151,24 +150,25 @@ see what comes out of this
 =cut
 
 sub userExists {
-  my ($this, $name) = @_;
+    my ( $this, $name ) = @_;
 
-  #writeDebug("called userExists($name)");
+    #writeDebug("called userExists($name)");
 
-  return 1 if 
-    $this->{ldap}->getWikiNameOfLogin($name) || 
-    $this->{ldap}->getLoginOfWikiName($name);
+    return 1
+      if $this->{ldap}->getWikiNameOfLogin($name)
+          || $this->{ldap}->getLoginOfWikiName($name);
 
-  if ($this->{secondaryPasswordManager}) {
-    #writeDebug("asking secondary password manager");
-    my $passwd = $this->{secondaryPasswordManager}->fetchPass($name);
-    return 1 if defined $passwd;
-  }
-  #writeDebug("$name is unknown");
+    if ( $this->{secondaryPasswordManager} ) {
 
-  return 0;
+        #writeDebug("asking secondary password manager");
+        my $passwd = $this->{secondaryPasswordManager}->fetchPass($name);
+        return 1 if defined $passwd;
+    }
+
+    #writeDebug("$name is unknown");
+
+    return 0;
 }
-
 
 =pod 
 
@@ -179,24 +179,24 @@ check passwd by binding to the ldap server
 =cut
 
 sub checkPassword {
-  my ($this, $login, $passU) = @_;
+    my ( $this, $login, $passU ) = @_;
 
-  writeDebug("called checkPassword($login, passU)");
+    writeDebug("called checkPassword($login, passU)");
 
-  # guest has no password
-  return 1 if $login eq $Foswiki::cfg{DefaultUserWikiName};
+    # guest has no password
+    return 1 if $login eq $Foswiki::cfg{DefaultUserWikiName};
 
-  # get user record
-  my $dn = $this->{ldap}->getDnOfLogin($login);
-  writeDebug("dn not found") unless $dn;
+    # get user record
+    my $dn = $this->{ldap}->getDnOfLogin($login);
+    writeDebug("dn not found") unless $dn;
 
-  return $this->{ldap}->connect($dn, $passU)
-    if $dn;
+    return $this->{ldap}->connect( $dn, $passU )
+      if $dn;
 
-  return $this->{secondaryPasswordManager}->checkPassword($login, $passU)
-    if $this->{secondaryPasswordManager};
+    return $this->{secondaryPasswordManager}->checkPassword( $login, $passU )
+      if $this->{secondaryPasswordManager};
 
-  return 0;
+    return 0;
 }
 
 =pod 
@@ -208,10 +208,10 @@ we can change passwords, so return false
 =cut
 
 sub readOnly {
-  my $this = shift;
+    my $this = shift;
 
-  return $this->{secondaryPasswordManager}->readOnly()
-    if $this->{secondaryPasswordManager};
+    return $this->{secondaryPasswordManager}->readOnly()
+      if $this->{secondaryPasswordManager};
 }
 
 =pod
@@ -224,7 +224,7 @@ core does not distinguish this case, e.g. by using readOnly()
 =cut
 
 sub isManagingEmails {
-  return 1;
+    return 1;
 }
 
 =pod 
@@ -238,20 +238,20 @@ if this is not the case we fallback to twiki's default behavior
 =cut
 
 sub getEmails {
-  my ($this, $login) = @_;
+    my ( $this, $login ) = @_;
 
-  # guest has no email addrs
-  return () if $login eq $Foswiki::cfg{DefaultUserWikiName};
+    # guest has no email addrs
+    return () if $login eq $Foswiki::cfg{DefaultUserWikiName};
 
-  # get emails from ldap
-  my $emails = $this->{ldap}->getEmails($login);
+    # get emails from ldap
+    my $emails = $this->{ldap}->getEmails($login);
 
-  return @{$emails} if $emails;
+    return @{$emails} if $emails;
 
-  return $this->{secondaryPasswordManager}->getEmails($login)
-    if $this->{secondaryPasswordManager};
+    return $this->{secondaryPasswordManager}->getEmails($login)
+      if $this->{secondaryPasswordManager};
 
-  return ();
+    return ();
 }
 
 =pod 
@@ -264,13 +264,13 @@ i.e. destroy the ldap object.
 =cut
 
 sub finish {
-  my $this = shift;
+    my $this = shift;
 
-  $this->{ldap}->finish() if $this->{ldap};
-  undef $this->{ldap};
-  undef $this->{passwords};
-  $this->{secondaryPasswordManager}->finish(@_)
-    if $this->{secondaryPasswordManager};
+    $this->{ldap}->finish() if $this->{ldap};
+    undef $this->{ldap};
+    undef $this->{passwords};
+    $this->{secondaryPasswordManager}->finish(@_)
+      if $this->{secondaryPasswordManager};
 }
 
 =pod
@@ -286,13 +286,13 @@ Returns 1 on success, undef on failure.
 =cut
 
 sub removeUser {
-  my $this = shift;
+    my $this = shift;
 
-  return $this->{secondaryPasswordManager}->removeUser(@_)
-    if $this->{secondaryPasswordManager};
+    return $this->{secondaryPasswordManager}->removeUser(@_)
+      if $this->{secondaryPasswordManager};
 
-  $this->{error} = 'System does not support removing users';
-  return undef;
+    $this->{error} = 'System does not support removing users';
+    return undef;
 }
 
 =pod
@@ -311,26 +311,34 @@ In any other case the secondary password manager gets the job.
 =cut
 
 sub passwd {
-  my ( $this, $user, $newPassword, $oldPassword ) = @_;
+    my ( $this, $user, $newPassword, $oldPassword ) = @_;
 
-  if ($this->{ldap}->{allowChangePassword} && defined($oldPassword) && $oldPassword ne '1') {
-    if ($this->{ldap}->getDnOfLogin($user)) {
-      return 1 if $this->{ldap}->changePassword($user, $newPassword, $oldPassword);
-      $this->error();
-      return undef;
+    if (   $this->{ldap}->{allowChangePassword}
+        && defined($oldPassword)
+        && $oldPassword ne '1' )
+    {
+        if ( $this->{ldap}->getDnOfLogin($user) ) {
+            return 1
+              if $this->{ldap}
+                  ->changePassword( $user, $newPassword, $oldPassword );
+            $this->error();
+            return undef;
+        }
     }
-  }
 
-  if ($this->{secondaryPasswordManager}) {
-    my $result = $this->{secondaryPasswordManager}->passwd($user, $newPassword, $oldPassword);
-    unless ($result) {
-      $this->{error} = $this->{secondaryPasswordManager}->{error};
+    if ( $this->{secondaryPasswordManager} ) {
+        my $result =
+          $this->{secondaryPasswordManager}
+          ->passwd( $user, $newPassword, $oldPassword );
+        unless ($result) {
+            $this->{error} = $this->{secondaryPasswordManager}->{error};
+        }
+        return $result;
     }
-    return $result;
-  }
 
-  $this->{error} = 'System does not support adding a user or forcing a  password change';
-  return undef;
+    $this->{error} =
+      'System does not support adding a user or forcing a  password change';
+    return undef;
 }
 
 =pod
@@ -344,13 +352,13 @@ password manager can.
 =cut
 
 sub encrypt {
-  my $this = shift;
+    my $this = shift;
 
-  return $this->{secondaryPasswordManager}->encrypt(@_)
-    if $this->{secondaryPasswordManager};
-  
-  $this->{error} = 'System does not support encrypting passwords';
-  return '';
+    return $this->{secondaryPasswordManager}->encrypt(@_)
+      if $this->{secondaryPasswordManager};
+
+    $this->{error} = 'System does not support encrypting passwords';
+    return '';
 }
 
 =pod
@@ -370,20 +378,23 @@ Otherwise returns 1 on success, undef on failure.
 =cut
 
 sub setPassword {
-  my ($this, $login, $newUserPassword, $oldUserPassword) = @_;
+    my ( $this, $login, $newUserPassword, $oldUserPassword ) = @_;
 
-  my $isOk = $this->{ldap}->changePassword($login, $newUserPassword, $oldUserPassword);
+    my $isOk =
+      $this->{ldap}
+      ->changePassword( $login, $newUserPassword, $oldUserPassword );
 
-  if ($isOk) {
-    $this->{error} = undef;
-    return 1;
-  } 
+    if ($isOk) {
+        $this->{error} = undef;
+        return 1;
+    }
 
-  return $this->{secondaryPasswordManager}->setPassword($login, $newUserPassword, $oldUserPassword)
-    if $this->{secondaryPasswordManager};
+    return $this->{secondaryPasswordManager}
+      ->setPassword( $login, $newUserPassword, $oldUserPassword )
+      if $this->{secondaryPasswordManager};
 
-  $this->error();
-  return undef;
+    $this->error();
+    return undef;
 }
 
 =pod
@@ -397,13 +408,13 @@ password manager can.
 =cut
 
 sub setEmails {
-  my $this = shift;
+    my $this = shift;
 
-  return $this->{secondaryPasswordManager}->setEmails(@_)
-    if $this->{secondaryPasswordManager};
-  
-  $this->{error} = 'System does not support setting the email adress';
-  return '';
+    return $this->{secondaryPasswordManager}->setEmails(@_)
+      if $this->{secondaryPasswordManager};
+
+    $this->{error} = 'System does not support setting the email adress';
+    return '';
 }
 
 =pod
@@ -417,23 +428,23 @@ LDAP manager with the secondary password manager
 =cut
 
 sub findUserByEmail {
-  my ($this, $email) = @_;
+    my ( $this, $email ) = @_;
 
-  my $users = $this->{ldap}->getLoginOfEmail($email);
-  return $users unless $this->{secondaryPasswordManager};
+    my $users = $this->{ldap}->getLoginOfEmail($email);
+    return $users unless $this->{secondaryPasswordManager};
 
-  # add those from the secondary
-  my $moreUsers = $this->{secondaryPasswordManager}->findUserByEmail($email);
+    # add those from the secondary
+    my $moreUsers = $this->{secondaryPasswordManager}->findUserByEmail($email);
 
-  push @$users, @{$moreUsers} if $moreUsers;
+    push @$users, @{$moreUsers} if $moreUsers;
 
-  # nothing found
-  return undef unless $users;
+    # nothing found
+    return undef unless $users;
 
-  # remove duplicates
-  my %users = map {$_ => $_} @$users;
-  my @users = values %users;
-  return \@users;
+    # remove duplicates
+    my %users = map { $_ => $_ } @$users;
+    my @users = values %users;
+    return \@users;
 }
 
 =pod 
@@ -445,7 +456,7 @@ returns true, as we can fetch users
 =cut
 
 sub canFetchUsers {
-  return 1;
+    return 1;
 }
 
 =pod 
@@ -457,12 +468,12 @@ returns a Foswiki::ListIterator of loginnames
 =cut
 
 sub fetchUsers {
-  my $this = shift;
+    my $this = shift;
 
-  my $users = $this->{ldap}->getAllLoginNames();
-  #print STDERR "fetchUsers=".join(',', @$users)."\n";
-  return new Foswiki::ListIterator($users);
+    my $users = $this->{ldap}->getAllLoginNames();
+
+    #print STDERR "fetchUsers=".join(',', @$users)."\n";
+    return new Foswiki::ListIterator($users);
 }
-
 
 1;
