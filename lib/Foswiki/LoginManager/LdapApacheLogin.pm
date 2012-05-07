@@ -27,13 +27,12 @@ in <nop>LdapContrib, and that its name matches onto the configured naming conven
 =cut
 
 use strict;
-use Assert                             ();
+use Assert ();
 use Foswiki::LoginManager::ApacheLogin ();
-use Foswiki::Contrib::LdapContrib      ();
-use Foswiki::Sandbox                   ();
+use Foswiki::Contrib::LdapContrib ();
+use Foswiki::Sandbox ();
 
-@Foswiki::LoginManager::LdapApacheLogin::ISA =
-  qw( Foswiki::LoginManager::ApacheLogin );
+@Foswiki::LoginManager::LdapApacheLogin::ISA = qw( Foswiki::LoginManager::ApacheLogin );
 
 =begin TML
 
@@ -44,12 +43,12 @@ Construct the <nop>LdapApacheLogin object
 =cut
 
 sub new {
-    my ( $class, $session ) = @_;
+  my ($class, $session) = @_;
 
-    my $this = bless( $class->SUPER::new($session), $class );
+  my $this = bless( $class->SUPER::new($session), $class );
 
-    $this->{ldap} = Foswiki::Contrib::LdapContrib::getLdapContrib($session);
-    return $this;
+  $this->{ldap} = Foswiki::Contrib::LdapContrib::getLdapContrib($session);
+  return $this;
 }
 
 =begin TML
@@ -62,35 +61,34 @@ cached.
 =cut
 
 sub loadSession {
-    my $this = shift;
+  my $this = shift;
 
-    my $authUser = $this->SUPER::loadSession(@_);
+  my $authUser = $this->SUPER::loadSession(@_);
 
-    # explicitly untaint it as this string comes from LDAP, and all strings
-    # from LDAP are tainted, even if they come via mod_ldap
-    $authUser = Foswiki::Sandbox::untaintUnchecked($authUser);
+  # explicitly untaint it as this string comes from LDAP, and all strings
+  # from LDAP are tainted, even if they come via mod_ldap
+  $authUser = Foswiki::Sandbox::untaintUnchecked($authUser);
 
-    # process authUser login name
-    if ( defined $authUser ) {
+  # process authUser login name
+  if (defined $authUser) {
 
-        #print STDERR "before authUser=$authUser\n";
+    #print STDERR "before authUser=$authUser\n";
 
-        $authUser =~ s/^\s+//o;
-        $authUser =~ s/\s+$//o;
-        $authUser = $this->{ldap}->fromUtf8($authUser);
+    $authUser =~ s/^\s+//o;
+    $authUser =~ s/\s+$//o;
+    $authUser = $this->{ldap}->fromUtf8($authUser);
 
-        $authUser = uc($authUser) if $this->{ldap}{uppercaseLoginName};   # TODO
-        $authUser = $this->{ldap}->normalizeLoginName($authUser)
-          if $this->{ldap}{normalizeLoginName};
+    $authUser = uc($authUser) if $this->{ldap}{uppercaseLoginName}; # TODO
+    $authUser = $this->{ldap}->normalizeLoginName($authUser) if $this->{ldap}{normalizeLoginName};
 
-        #print STDERR "after authUser=$authUser\n";
+    #print STDERR "after authUser=$authUser\n";
 
-        unless ( $this->{ldap}{excludeMap}{$authUser} ) {
-            $this->{ldap}->checkCacheForLoginName($authUser);
-        }
+    unless ($this->{ldap}{excludeMap}{$authUser}) {
+      $this->{ldap}->checkCacheForLoginName($authUser);
     }
+  }
 
-    return $authUser;
+  return $authUser;
 }
 
 1;
