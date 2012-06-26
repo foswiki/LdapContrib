@@ -22,6 +22,7 @@ use Net::LDAP;
 use Net::LDAP::Constant qw(LDAP_SUCCESS LDAP_SIZELIMIT_EXCEEDED LDAP_CONTROL_PAGED);
 use Net::LDAP::Extension::SetPassword;
 use DB_File;
+use Encode ();
 
 use Foswiki::Func ();
 use Foswiki::Plugins ();
@@ -29,7 +30,7 @@ use Foswiki::Plugins ();
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev: 4426 (2009-07-03) $';
-$RELEASE = '4.40';
+$RELEASE = '4.41';
 
 =pod
 
@@ -1938,7 +1939,6 @@ interval (default every 24h). See the LdapContrib settings.
 
 sub checkCacheForLoginName {
   my ($this, $loginName, $data) = @_;
-  my %unknownNames = ();
   
   return 0 unless($loginName);
 
@@ -1952,8 +1952,7 @@ sub checkCacheForLoginName {
   # If we are not in precache mode we need to check if the user has not yet been unsuccessfully lookedup in LDAP
   # To avoid excessive useless queries for the same non existing user
   unless ($this->{preCache}) {
-    %unknownNames = map {$_ => 1} @{$this->getAllUnknownUsers($data)};
-    if (defined($unknownNames{$loginName})) {
+    if ($this->isUnknownUser($loginName, $data)) {
       return 0;
     }
   }
@@ -2089,30 +2088,30 @@ Insert a new user in the list of unknown users that should not be lookedup in LD
 
 sub addIgnoredUser {
   my ($this, $loginName, $data) = @_;
-  my %unknownNames = ();
 
-  %unknownNames = map {$_ => 1} @{$this->getAllUnknownUsers($data)};
-  $unknownNames{$loginName} = 1;
-  $data->{UNKWNUSERS} = join(',', keys %unknownNames);
+  $data ||= $this->{data};
+
+  $data->{UNKWNUSERS} .= ',' . $loginName
+    unless $this->isUnknownUser($loginName, $data);
 }
 
 =pod 
 
----++ getAllUnknownUsers($data) -> \@array
+---++++ isUnknownUser($loginName, $data) -> $boolean
 
-returns a list of all unknown users that should not be relookedup in LDAP
+returns 1 if $loginName is an unknown user that should not be relookedup in LDAP
 
 =cut
 
-sub getAllUnknownUsers {
-  my ($this, $data) = @_;
+sub isUnknownUser {
+  my ($this, $loginName, $data) = @_;
 
   $data ||= $this->{data};
 
-  my $wikiNames = Foswiki::Sandbox::untaintUnchecked($data->{UNKWNUSERS}) || '';
-  my @wikiNames = split(/\s*,\s*/,$wikiNames);
-  return \@wikiNames;
+  my $names = Foswiki::Sandbox::untaintUnchecked($data->{UNKWNUSERS}) || '';
+  return $names =~ /\b$loginName\b)/;
 }
+
 
 =pod 
 
@@ -2124,33 +2123,28 @@ Insert a new group in the list of unknown groups that should not be lookedup in 
 
 sub addIgnoredGroup {
   my ($this, $groupName, $data) = @_;
-  my %unknownNames = ();
-  
 
   $data ||= $this->{data};
 
-  %unknownNames = map {$_ => 1} @{$this->getAllUnknownGroups($data)};
-  $unknownNames{$groupName} = 1;
-  $data->{UNKWNGROUPS} = join(',', keys %unknownNames);
+  $data->{UNKWNGROUPS} .= ',' . $groupName
+    unless $this->isUnknownGroup($groupName, $data);
 }
-
 
 =pod 
 
----++ getAllUnknownGroups($data) -> \@array
+---++++ isUnknownGroup($groupName, $data) -> $boolean
 
-returns a list of all unknown groups that should not be relookedup in LDAP
+returns 1 if $groupName is an unknown groups that should not be relookedup in LDAP
 
 =cut
 
-sub getAllUnknownGroups {
-  my ($this, $data) = @_;
+sub isUnknownGroup {
+  my ($this, $groupName, $data) = @_;
 
   $data ||= $this->{data};
 
   my $wikiNames = Foswiki::Sandbox::untaintUnchecked($data->{UNKWNGROUPS}) || '';
-  my @wikiNames = split(/\s*,\s*/,$wikiNames);
-  return \@wikiNames;
+  return $wikiNames =~ /\b$groupName\b)/;
 }
 
 =pod
@@ -2166,7 +2160,6 @@ This happens when the precache mode is off. See the LdapContrib settings.
 
 sub checkCacheForGroupName {
   my ($this, $groupName, $data) = @_;
-  my %unknownNames = ();
 
   #writeDebug("called checkCacheForGroupName($groupName)");
 
@@ -2174,8 +2167,7 @@ sub checkCacheForGroupName {
 
   # Skip lookup if group was already not found in LDAP since last cache expiration
   unless ($this->{preCache}) {
-    %unknownNames = map { $_ => 1 } @{ $this->getAllUnknownGroups($data) };
-    if (defined($unknownNames{$groupName})) {
+    if ($this->isUnknownGroup($groupName, $data)) {
       return 0;
     }
   }
@@ -2309,9 +2301,7 @@ sub getGroup {
 
 ---++ fromUtf8($string) -> $string
 
-Wrapper to use Unicode::MapUTF8 for Perl < 5.008
-and Encode for later versions.
-[adopted from <nop>I18N.pm]
+recode strings coming from ldap to the site's character set
 
 =cut
 
@@ -2321,31 +2311,14 @@ sub fromUtf8 {
   my $charset = $Foswiki::cfg{Site}{CharSet};
   return $utf8string if $charset =~ /^utf-?8$/i;
 
-  if ($] < 5.008) {
-
-    # use Unicode::MapUTF8 for Perl older than 5.8
-    require Unicode::MapUTF8;
-    if (Unicode::MapUTF8::utf8_supported_charset($charset)) {
-      return Unicode::MapUTF8::from_utf8({ -string => $utf8string, -charset => $charset });
-    } else {
-      $this->writeWarning('Conversion from $encoding no supported, ' . 'or name not recognised - check perldoc Unicode::MapUTF8');
-      return $utf8string;
-    }
+  my $encoding = Encode::resolve_alias($charset);
+  if (not $encoding) {
+    $this->writeWarning('Conversion to "' . $charset . '" not supported, or name not recognised - check ' . '"perldoc Encode::Supported"');
+    return $utf8string;
   } else {
 
-    # good Perl version, just use Encode
-    require Encode;
-    import Encode;
-    my $encoding = Encode::resolve_alias($charset);
-    if (not $encoding) {
-      $this->writeWarning('Conversion to "' . $charset . '" not supported, or name not recognised - check ' . '"perldoc Encode::Supported"');
-      return $utf8string;
-    } else {
-
-      # converts to $charset, generating HTML NCR's when needed
-      my $octets = Encode::decode('utf-8', $utf8string);
-      return Encode::encode($encoding, $octets, &Encode::FB_HTMLCREF());
-    }
+    my $octets = Encode::decode('utf-8', $utf8string);
+    return Encode::encode($encoding, $octets, &Encode::FB_HTMLCREF());
   }
 }
 
@@ -2353,9 +2326,7 @@ sub fromUtf8 {
 
 ---++ toUtf8($string) -> $utf8string
 
-Wrapper to use Unicode::MapUTF8 for Perl < 5.008
-and Encode for later versions.
-[adopted from <nop>I18N.pm]
+encode strings coming from the site to be used talking to the ldap directory
 
 =cut
 
@@ -2365,29 +2336,13 @@ sub toUtf8 {
   my $charset = $Foswiki::cfg{Site}{CharSet};
   return $string if $charset =~ /^utf-?8$/i;
 
-  if ($] < 5.008) {
-
-    # use Unicode::MapUTF8 for Perl older than 5.8
-    require Unicode::MapUTF8;
-    if (Unicode::MapUTF8::utf8_supported_charset($charset)) {
-      return Unicode::MapUTF8::to_utf8({ -string => $string, -charset => $charset });
-    } else {
-      $this->writeWarning('Conversion from $encoding no supported, ' . 'or name not recognised - check perldoc Unicode::MapUTF8');
-      return $string;
-    }
+  my $encoding = Encode::resolve_alias($charset);
+  if (not $encoding) {
+    $this->writeWarning('Conversion to "' . $charset . '" not supported, or name not recognised - check ' . '"perldoc Encode::Supported"');
+    return undef;
   } else {
-
-    # good Perl version, just use Encode
-    require Encode;
-    import Encode;
-    my $encoding = Encode::resolve_alias($charset);
-    if (not $encoding) {
-      $this->writeWarning('Conversion to "' . $charset . '" not supported, or name not recognised - check ' . '"perldoc Encode::Supported"');
-      return undef;
-    } else {
-      my $octets = Encode::decode($encoding, $string, &Encode::FB_PERLQQ());
-      return Encode::encode('utf-8', $octets);
-    }
+    my $octets = Encode::decode($encoding, $string, &Encode::FB_PERLQQ());
+    return Encode::encode('utf-8', $octets);
   }
 }
 

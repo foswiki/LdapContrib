@@ -494,7 +494,8 @@ This work was partly sponsored by
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
-|  26 Jun 2012: | added =CaseSensitiveLogin= feature, defaulting to =off= |
+|  26 Jun 2012: | added =CaseSensitiveLogin= feature, defaulting to =off=; \
+                  performance improvements looking up the ldap cache (by Jayen Ashar) |
 |  11 Jan 2012: | fixed using !ListIterators on undefined list values |
 |  20 Dec 2011: | fixes deep recursion when adding !AdminGroup to !AdminGroup; fixed sizelimit not properly being applied to ldap query; disabled expensive debug message |
 |  16 Dec 2010: | implemented new =expand= feature of =GROUPINFO= found in newer foswikis |
