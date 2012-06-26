@@ -78,7 +78,7 @@ sub loadSession {
     $authUser =~ s/\s+$//o;
     $authUser = $this->{ldap}->fromUtf8($authUser);
 
-    $authUser = uc($authUser) if $this->{ldap}{uppercaseLoginName}; # TODO
+    $authUser = lc($authUser) unless $this->{ldap}{caseSensitiveLogin}; 
     $authUser = $this->{ldap}->normalizeLoginName($authUser) if $this->{ldap}{normalizeLoginName};
 
     #print STDERR "after authUser=$authUser\n";

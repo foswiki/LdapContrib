@@ -128,6 +128,8 @@ sub getLoginName {
   $login =~ s/_([0-9a-f][0-9a-f])/chr(hex($1))/gei;
   no bytes;
 
+  $login = lc($login) unless $this->{ldap}{caseSensitiveLogin};
+
   return undef unless $this->{ldap}->getWikiNameOfLogin($login);
   return undef unless ($cUID eq $this->login2cUID($login));
 
@@ -539,6 +541,7 @@ sub login2cUID {
   my $loginName = $this->{ldap}->getLoginOfWikiName($name);
   $name = $loginName if defined $loginName; # called with a wikiname
 
+  $name = lc($name) unless $this->{ldap}{caseSensitiveLogin};
   my $cUID = $this->{mapping_id}.Foswiki::Users::mapLogin2cUID($name);
 
   unless ($dontcheck) {
