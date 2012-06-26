@@ -127,6 +127,10 @@ $Foswiki::cfg{Ldap}{NormalizeWikiNames} = 1;
 # Enable/disable normalization of login names
 $Foswiki::cfg{Ldap}{NormalizeLoginNames} = 0;
 
+# **BOOLEAN**
+# Enable/disable case sensitive login names. If disabled case doesn't matter logging in.
+$Foswiki::cfg{Ldap}{CaseSensitiveLogin} = 0;
+
 # **STRING**
 # Alias old !WikiNames to new account. This is a comma separated list of
 # "OldName=NewName" values.

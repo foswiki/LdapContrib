@@ -2,15 +2,6 @@
 ---+!! %TOPIC%
 %TOC%
 ---++ Introduction
-<table style="float:right">
-<tr>
-  <td><img src="%ATTACHURLPATH%/wikiringlogo40x40.png"></td>
-  <td><a href="http://wikiring.com" title="Make your Wiki ring!" style="text-decoration:none">
-      Powered by <br /> <nop>WikiRing Consultants </a>
-  </td>
-</tr>
-</table>
-
 This package offers basic LDAP services for Foswiki and offers authentication of
 wiki users by binding to an LDAP server as well as incorporate LDAP user
 groups into access control. 
@@ -185,6 +176,14 @@ The login name can be normalized by enabling the
 setting. This will also strip off any '<nop>@...' string from the login as found
 when logging ing using the mail attribute or when using !LdapContrib in combination
 with a kerberos single sign on strategy.
+
+In most scenarios users prefer not to care about case sensitivity of their login names
+for convenience. If however your authentication requires an exact match of the login name
+including case sensitivity, the use
+
+<verbatim>$Foswiki::cfg{Ldap}{CaseSensitiveLogin} = 1;</verbatim>
+
+to switch that on.
 
 Similar to the <nop>WikiName of a user, group names can be normalized using
 
@@ -495,6 +494,7 @@ This work was partly sponsored by
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  26 Jun 2012: | added =CaseSensitiveLogin= feature, defaulting to =off= |
 |  11 Jan 2012: | fixed using !ListIterators on undefined list values |
 |  20 Dec 2011: | fixes deep recursion when adding !AdminGroup to !AdminGroup; fixed sizelimit not properly being applied to ldap query; disabled expensive debug message |
 |  16 Dec 2010: | implemented new =expand= feature of =GROUPINFO= found in newer foswikis |
@@ -596,6 +596,3 @@ This work was partly sponsored by
 |  28 Apr 2006: | Initial version |
 |  Home: | Foswiki:Extensions/%TOPIC% |
 |  Support: | Foswiki:Support/%TOPIC% |
-
-
-%META:FILEATTACHMENT{name="wikiringlogo40x40.png" attr="h" autoattached="0" comment="" date="1190996093" path="wikiringlogo40x40.png" size="2571" user="ProjectContributor" version="1"}%

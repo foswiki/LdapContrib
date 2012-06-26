@@ -29,7 +29,7 @@ use Foswiki::Plugins ();
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev: 4426 (2009-07-03) $';
-$RELEASE = '4.33';
+$RELEASE = '4.40';
 
 =pod
 
@@ -173,6 +173,7 @@ sub new {
 
     normalizeWikiName=>$Foswiki::cfg{Ldap}{NormalizeWikiNames},
     normalizeLoginName=>$Foswiki::cfg{Ldap}{NormalizeLoginNames},
+    caseSensitiveLogin=>$Foswiki::cfg{Ldap}{CaseSensitiveLogin} || 0,
     normalizeGroupName=>$Foswiki::cfg{Ldap}{NormalizeGroupNames},
 
     loginFilter=>$Foswiki::cfg{Ldap}{LoginFilter} || 'objectClass=posixAccount',
@@ -298,9 +299,9 @@ sub getLdapContrib {
 
 =pod
 
----++ connect($login, $passwd) -> $boolean
+---++ connect($dn, $passwd) -> $boolean
 
-Connect to LDAP server. If a $login name and a $passwd is given then a bind is done.
+Connect to LDAP server. If a $dn parameter and a $passwd is given then a bind is done.
 Otherwise the communication is anonymous. You don't have to connect() explicitely
 by calling this method. The methods below will do that automatically when needed.
 
@@ -335,7 +336,8 @@ sub connect {
     $args{"clientcert"} = $this->{tlsClientCert} if $this->{tlsClientCert};
     $args{"clientkey"} = $this->{tlsClientKey} if $this->{tlsClientKey};
     $args{"sslversion"} = $this->{tlsSSLVersion} if $this->{tlsSSLVersion};
-    $this->{ldap}->start_tls(%args);
+    my $msg = $this->{ldap}->start_tls(%args);
+    writeWarning($msg->{errorMessage}) if exists $msg->{errorMessage};
   }
 
   $passwd = $this->toUtf8($passwd) if $passwd;
@@ -476,7 +478,7 @@ sub getCode {
 
 =pod
 
----++ getAccount($login) -> Net::LDAP::Entry object
+---++ getAccount($loginName) -> Net::LDAP::Entry object
 
 Fetches an account entry from the database and returns a Net::LDAP::Entry
 object on success and undef otherwise. Note, the login name is match against
@@ -486,14 +488,17 @@ search using $ldap->{loginFilter} in the subtree defined by $ldap->{userBase}.
 =cut
 
 sub getAccount {
-  my ($this, $login) = @_;
+  my ($this, $loginName) = @_;
 
-  #writeDebug("called getAccount($login)");
-  return undef if $this->{excludeMap}{$login};
+  #writeDebug("called getAccount($loginName)");
+  return undef if $this->{excludeMap}{$loginName};
+
+  # take care of login case
+  $loginName = lc($loginName) unless $this->{caseSensitiveLogin};
 
   my $loginFilter = $this->{loginFilter};
   $loginFilter = "($loginFilter)" unless $loginFilter =~ /^\(.*\)$/;
-  my $filter = '(&'.$loginFilter.'('.$this->{loginAttribute}.'='.$login.'))';
+  my $filter = '(&'.$loginFilter.'('.$this->{loginAttribute}.'='.$loginName.'))';
   my $msg = $this->search(
     filter=>$filter, 
     base=>$this->{userBase}
@@ -1074,6 +1079,7 @@ sub cacheUserFromEntry {
   $loginName = $this->fromUtf8($loginName);
 
   # 2. normalize
+  $loginName = lc($loginName) unless $this->{caseSensitiveLogin};
   $loginName = $this->normalizeLoginName($loginName) if $this->{normalizeLoginName};
   return 0 if $this->{excludeMap}{$loginName};
 
@@ -1184,11 +1190,13 @@ sub cacheUserFromEntry {
 
   if (defined($loginNames->{$loginName})) {
     my $clashDN = $loginNames->{$loginName};
-    if ($clashDN eq '1') {
-      $clashDN = $data->{"U2DN::$loginName"} || '???';
+    if ($clashDN ne $dn) {
+      if ($clashDN eq '1') {
+        $clashDN = $data->{"U2DN::$loginName"} || '???';
+      }
+      writeWarning("$dn clashes with $clashDN on loginName $loginName ... please configure a unique loginName attribute");
+      return 0;
     }
-    writeWarning("$dn clashes with $clashDN on loginName $loginName ... please configure a unique loginName attribute");
-    return 0;
   }
 
   $wikiNames->{$wikiName} = $dn;
@@ -1315,7 +1323,8 @@ sub cacheGroupFromEntry {
     return 0;
   }
 
-  if (defined($data->{"U2W::$groupName"}) || defined($data->{"W2U::$groupName"})) {
+  my $loginName = $this->{caseSensitiveLogin}?$groupName:lc($groupName);
+  if (defined($data->{"U2W::$loginName"}) || defined($data->{"W2U::$groupName"})) {
     my $groupSuffix = '';
     if ($this->{normalizeGroupName}) {
       $groupSuffix = 'Group';
@@ -1351,7 +1360,6 @@ sub cacheGroupFromEntry {
     $innerGroup =~ s/\s+$//o;
     $this->{_groups}{$groupName}{$innerGroup} = 1; # delay til all groups have been fetched
   }
-
 
   # store it
   writeDebug("adding groupName='$groupName', dn=$dn");
@@ -1630,10 +1638,13 @@ sub isGroup {
   #writeDebug("called isGroup($wikiName)");
   $data ||= $this->{data};
 
+
   return undef if $this->{excludeMap}{$wikiName};
   return 1 if defined($data->{"GROUPS::$wikiName"});
   return 0 if defined($data->{"W2U::$wikiName"});
-  return 0 if defined($data->{"U2W::$wikiName"});
+
+  my $loginName = lc($wikiName) unless $this->{caseSensitiveLogin};
+  return 0 if defined($data->{"U2W::$loginName"});
 
   unless ($this->{preCache}) {
     $this->checkCacheForGroupName($wikiName, $data);
@@ -1646,20 +1657,21 @@ sub isGroup {
 
 =pod
 
----++ getEmails($login, $data) -> @emails
+---++ getEmails($loginName, $data) -> @emails
 
 fetch emails from LDAP
 
 =cut
 
 sub getEmails {
-  my ($this, $login, $data) = @_;
+  my ($this, $loginName, $data) = @_;
 
+  $loginName = lc($loginName) unless $this->{caseSensitiveLogin};
   $data ||= $this->{data};
 
-  $this->checkCacheForLoginName($login, $data) unless $this->{preCache};
+  $this->checkCacheForLoginName($loginName, $data) unless $this->{preCache};
 
-  my $emails = Foswiki::Sandbox::untaintUnchecked($data->{ "U2EMAIL::" . $login }) || '';
+  my $emails = Foswiki::Sandbox::untaintUnchecked($data->{ "U2EMAIL::" . $loginName }) || '';
   my @emails = split(/\s*,\s*/, $emails);
   return \@emails;
 }
@@ -1744,6 +1756,7 @@ sub getWikiNameOfLogin {
 
   #writeDebug("called getWikiNameOfLogin($loginName)");
 
+  $loginName = lc($loginName) unless $this->{caseSensitiveLogin};
   $data ||= $this->{data};
 
   unless ($this->{preCache}) {
@@ -1827,6 +1840,7 @@ sub getDnOfLogin {
 
   return unless $loginName;
 
+  $loginName = lc($loginName) unless $this->{caseSensitiveLogin};
   $data ||= $this->{data};
 
   return Foswiki::Sandbox::untaintUnchecked($data->{"U2DN::$loginName"});
@@ -1930,6 +1944,7 @@ sub checkCacheForLoginName {
 
   #writeDebug("called checkCacheForLoginName($loginName)");
 
+  $loginName = lc($loginName) unless $this->{caseSensitiveLogin};
   $data ||= $this->{data};
 
   return 1 if $data->{"U2W::$loginName"};
@@ -2220,9 +2235,9 @@ sub checkCacheForGroupName {
           if (!$this->{preCache} && $member =~ /$this->{groupBase}/i) {
             my $innerGroupName = $member;
             $innerGroupName =~ s/$this->{groupBase}//o;
-            $innerGroupName =~ s/$this->{groupAttribute}=//o;
+            $innerGroupName =~ s/$this->{groupAttribute}=//oi;
             $innerGroupName =~ s/^,+//o;
-            $innerGroupName =~ s/,+$//o;
+            $innerGroupName =~ ($this->{UserScope} eq 'sub' || $this->{GroupAttribute} eq 'sub') ? s/,.*$//o : s/,+$//o;
 
             # Smell: this may not be reliable and may work only with membersindirection. TO CHECK
             if ($innerGroupName ne "" && $this->isGroup($innerGroupName, $data)) {
