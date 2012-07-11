@@ -30,7 +30,7 @@ use Foswiki::Plugins ();
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
 $VERSION = '$Rev: 4426 (2009-07-03) $';
-$RELEASE = '4.42';
+$RELEASE = '4.43';
 
 =pod
 
@@ -1457,16 +1457,23 @@ sub transliterate {
 
     $string =~ s/\xc3\xa7/c/go; # c cedille 
     $string =~ s/\xc4\x87/c/go; # c acute
+    $string =~ s/\xc4\x8d/c/go; # c caron
     $string =~ s/\xc3\x87/C/go; # C cedille 
     $string =~ s/\xc4\x86/C/go; # C acute
+    $string =~ s/\xc4\x8c/C/go; # C caron
+
+    $string =~ s/\xc4\x8f/d/go; # d caron
+    $string =~ s/\xc4\x8e/D/go; # D caron
 
     $string =~ s/\xc3\xa8/e/go; # e grave
     $string =~ s/\xc3\xa9/e/go; # e acute
     $string =~ s/\xc3\xaa/e/go; # e circumflex
     $string =~ s/\xc3\xab/e/go; # e uml
+    $string =~ s/\xc4\x9b/e/go; # e caron
 
     $string =~ s/\xc4\x99/e/go; # e ogonek
     $string =~ s/\xc4\x98/E/go; # E ogonek
+    $string =~ s/\xc4\x9a/E/go; # E caron
 
     $string =~ s/\xc3\xb2/o/go; # o grave
     $string =~ s/\xc3\xb3/o/go; # o acute
@@ -1488,19 +1495,31 @@ sub transliterate {
     $string =~ s/\xc3\xba/u/go; # u acute
     $string =~ s/\xc3\xbb/u/go; # u circumflex
     $string =~ s/\xc3\xbc/ue/go; # u uml
+    $string =~ s/\xc5\xaf/u/go; # u ring above
 
     $string =~ s/\xc3\x99/U/go; # U grave
     $string =~ s/\xc3\x9a/U/go; # U acute
     $string =~ s/\xc3\x9b/U/go; # U circumflex
     $string =~ s/\xc3\x9c/Ue/go; # U uml
+    $string =~ s/\xc5\xae/U/go; # U ring above
+
+    $string =~ s/\xc5\x99/r/go; # r caron
+    $string =~ s/\xc5\x98/R/go; # R caron
 
     $string =~ s/\xc3\x9f/ss/go; # sharp s
     $string =~ s/\xc5\x9b/s/go; # s acute
+    $string =~ s/\xc5\xa1/s/go; # s caron
     $string =~ s/\xc5\x9a/S/go; # S acute
+    $string =~ s/\xc5\xa0/S/go; # S caron
+
+    $string =~ s/\xc5\xa5/t/go; # t caron
+    $string =~ s/\xc5\xa4/T/go; # T caron
 
     $string =~ s/\xc3\xb1/n/go; # n tilde
     $string =~ s/\xc5\x84/n/go; # n acute
+    $string =~ s/\xc5\x88/n/go; # n caron
     $string =~ s/\xc5\x83/N/go; # N acute
+    $string =~ s/\xc5\x87/N/go; # N caron
 
     $string =~ s/\xc3\xbe/y/go; # y acute
     $string =~ s/\xc3\xbf/y/go; # y uml
@@ -1511,12 +1530,16 @@ sub transliterate {
     $string =~ s/\xc3\xad/i/go; # i uml
 
     $string =~ s/\xc5\x82/l/go; # l stroke
+    $string =~ s/\xc4\xbe/l/go; # l caron
     $string =~ s/\xc5\x81/L/go; # L stroke
+    $string =~ s/\xc4\xbd/L/go; # L caron
 
     $string =~ s/\xc5\xba/z/go; # z acute
     $string =~ s/\xc5\xb9/Z/go; # Z acute
     $string =~ s/\xc5\xbc/z/go; # z dot
     $string =~ s/\xc5\xbb/Z/go; # Z dot
+    $string =~ s/\xc5\xbe/z/go; # z caron
+    $string =~ s/\xc5\xbd/Z/go; # Z caron
   } else {
     $string =~ s/\xe0/a/go; # a grave
     $string =~ s/\xe1/a/go; # a acute
@@ -2109,7 +2132,7 @@ sub isUnknownUser {
   $data ||= $this->{data};
 
   my $names = Foswiki::Sandbox::untaintUnchecked($data->{UNKWNUSERS}) || '';
-  return $names =~ /\b$loginName\b)/;
+  return $names =~ /\b$loginName\b/;
 }
 
 
@@ -2144,7 +2167,7 @@ sub isUnknownGroup {
   $data ||= $this->{data};
 
   my $wikiNames = Foswiki::Sandbox::untaintUnchecked($data->{UNKWNGROUPS}) || '';
-  return $wikiNames =~ /\b$groupName\b)/;
+  return $wikiNames =~ /\b$groupName\b/;
 }
 
 =pod
