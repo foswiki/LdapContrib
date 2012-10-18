@@ -494,6 +494,7 @@ This work was partly sponsored by
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  17 Oct 2012: | Item12159: added =passwords_modifyable= context to re-enable changing passwords from the core topics (by Sven Dowideit) |
 |  10 Jul 2012: | improved unicode transliteration; fixed error in regular expression testing for unknown users and groups (by Jim Hague) |
 |  26 Jun 2012: | added =CaseSensitiveLogin= feature, defaulting to =off=; \
                   performance improvements looking up the ldap cache (by Jayen Ashar) |

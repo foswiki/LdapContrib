@@ -29,8 +29,8 @@ use Foswiki::Plugins ();
 
 use vars qw($VERSION $RELEASE %sharedLdapContrib);
 
-$VERSION = '$Rev: 4426 (2009-07-03) $';
-$RELEASE = '4.43';
+$VERSION = '2012-10-17';
+$RELEASE = '4.44';
 
 =pod
 

@@ -210,8 +210,12 @@ we can change passwords, so return false
 sub readOnly {
   my $this = shift;
 
-  return $this->{secondaryPasswordManager}->readOnly()
-    if $this->{secondaryPasswordManager};
+  if ($Foswiki::cfg{Ldap}{AllowChangePassword}) {
+    $this->{session}->enterContext('passwords_modifyable');
+  } else {
+    return $this->{secondaryPasswordManager}->readOnly()
+      if $this->{secondaryPasswordManager};
+  }
 }
 
 =pod
