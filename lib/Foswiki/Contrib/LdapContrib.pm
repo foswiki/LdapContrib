@@ -18,7 +18,10 @@
 package Foswiki::Contrib::LdapContrib;
 
 use strict;
-use Net::LDAP;
+use warnings;
+
+use Net::LDAP qw(LDAP_REFERRAL);
+use URI::ldap;
 use Net::LDAP::Constant qw(LDAP_SUCCESS LDAP_SIZELIMIT_EXCEEDED LDAP_CONTROL_PAGED);
 use Net::LDAP::Extension::SetPassword;
 use DB_File;
@@ -27,10 +30,9 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-use vars qw($VERSION $RELEASE %sharedLdapContrib);
-
-$VERSION = '2012-10-17';
-$RELEASE = '4.44';
+our $VERSION = '5.00';
+our $RELEASE = '5.00';
+our %sharedLdapContrib;
 
 =pod
 
@@ -45,7 +47,13 @@ Foswiki:Plugins/LdapNgPlugin to interface general query services.
 <verbatim>
 my $ldap = new Foswiki::Contrib::LdapContrib;
 
-my $result = $ldap->search(filter=>'mail=*@gmx*');
+$ldap->search(
+  filter => 'mail=*@gmx*',
+  callback => sub {
+    my ($ldap, $entry) = @_;
+    # process entry
+  } 
+);
 my $errorMsg = $ldap->getError();
 
 my $count = $result->count();
@@ -115,8 +123,8 @@ Possible options are:
    * base: the base DN to use in searches
    * port: port address used when binding to the LDAP server
    * version: protocol version 
-   * userBase: sub-tree DN of user accounts
-   * groupBase: sub-tree DN of group definitions
+   * userBase: list of sub-trees containing user accounts
+   * groupBase: list of sub-trees containing group definitions
    * loginAttribute: user login name attribute
    * loginFilter: filter to be used to find login accounts
    * groupAttribute: the group name attribute 
@@ -149,17 +157,15 @@ sub new {
     version=>$Foswiki::cfg{Ldap}{Version} || 3,
 
     userBase=>$Foswiki::cfg{Ldap}{UserBase} 
-      || $Foswiki::cfg{Ldap}{BasePasswd} # DEPRECATED
       || $Foswiki::cfg{Ldap}{Base} 
-      || '',
+      || [],
 
     userScope=>$Foswiki::cfg{Ldap}{UserScope}
       || 'sub',
 
     groupBase=>$Foswiki::cfg{Ldap}{GroupBase} 
-      || $Foswiki::cfg{Ldap}{BaseGroup} # DEPRECATED
       || $Foswiki::cfg{Ldap}{Base} 
-      || '',
+      || [],
 
     groupScope=>$Foswiki::cfg{Ldap}{GroupScope}
       || 'sub',
@@ -198,7 +204,7 @@ sub new {
     exclude=>$Foswiki::cfg{Ldap}{Exclude} || 
       'WikiGuest, ProjectContributor, RegistrationAgent, AdminGroup, NobodyGroup',
 
-    pageSize=>$Foswiki::cfg{Ldap}{PageSize} || 200,
+    pageSize=>$Foswiki::cfg{Ldap}{PageSize},
     isConnected=>0,
     maxCacheAge=>$Foswiki::cfg{Ldap}{MaxCacheAge},
     preCache=>$Foswiki::cfg{Ldap}{Precache},
@@ -222,6 +228,15 @@ sub new {
   $this->{session} = $session;
 
   $this->{preCache} = 1 unless defined $this->{preCache};
+  $this->{pageSize} = 200 unless defined $this->{pageSize};
+
+  unless (ref($this->{userBase})) {
+    push @{$this->{userBase}}, $this->{userBase};
+  }
+
+  unless (ref($this->{groupBase})) {
+    push @{$this->{groupBase}}, $this->{groupBase};
+  }
 
   if ($this->{useSASL}) {
     #writeDebug("will use SASL authentication");
@@ -256,7 +271,12 @@ sub new {
   @{$this->{wikiNameAttributes}} = split(/\s*,\s*/, $this->{wikiNameAttribute});
 
   # create exclude map
-  my %excludeMap = map {$_ => 1} split(/\s*,\s*/, $this->{exclude});
+  my %excludeMap;
+  if ($this->{caseSensitiveLogin}) {
+    %excludeMap = map {$_ => 1} split(/\s*,\s*/, $this->{exclude});
+  } else {
+    %excludeMap = map {$_ => 1, lc($_) => 1} split(/\s*,\s*/, $this->{exclude});
+  }
   $this->{excludeMap} = \%excludeMap;
 
   # creating alias map
@@ -300,7 +320,7 @@ sub getLdapContrib {
 
 =pod
 
----++ connect($dn, $passwd) -> $boolean
+---++ connect($dn, $passwd, $host, $port) -> $boolean
 
 Connect to LDAP server. If a $dn parameter and a $passwd is given then a bind is done.
 Otherwise the communication is anonymous. You don't have to connect() explicitely
@@ -309,15 +329,17 @@ by calling this method. The methods below will do that automatically when needed
 =cut
 
 sub connect {
-  my ($this, $dn, $passwd) = @_;
+  my ($this, $dn, $passwd, $host, $port) = @_;
 
   #writeDebug("called connect");
   #writeDebug("dn=$dn", 2) if $dn;
   #writeDebug("passwd=***", 2) if $passwd;
 
-  require Net::LDAP;
-  $this->{ldap} = Net::LDAP->new($this->{host},
-    port=>$this->{port},
+  $host ||= $this->{host};
+  $port ||= $this->{port};
+
+  $this->{ldap} = Net::LDAP->new($host,
+    port=>$port,
     version=>$this->{version},
   );
   unless ($this->{ldap}) {
@@ -328,7 +350,7 @@ sub connect {
 
   # TLS bind
   if ($this->{useTLS}) {
-    writeDebug("using TLS");
+    #writeDebug("using TLS");
     my %args = (
       verify => $this->{tlsVerify},
       cafile => $this->{tlsCAFile},
@@ -341,14 +363,14 @@ sub connect {
     writeWarning($msg->{errorMessage}) if exists $msg->{errorMessage};
   }
 
-  $passwd = $this->toUtf8($passwd) if $passwd;
+  $passwd = $this->fromSiteCharSet($passwd) if $passwd;
 
   # authenticated bind
   my $msg;
   if (defined($dn)) {
     die "illegal call to connect()" unless defined($passwd);
     $msg = $this->{ldap}->bind($dn, password=>$passwd);
-    writeDebug("bind for $dn");
+    #writeDebug("bind for $dn");
   } 
 
   # proxy user 
@@ -363,11 +385,11 @@ sub connect {
           pass => $this->{bindPassword},
         },
       );
-      writeDebug("sasl bind to $this->{bindDN}");
+      #writeDebug("sasl bind to $this->{bindDN}");
       $msg = $this->{ldap}->bind($this->{bindDN}, sasl=>$sasl, version=>$this->{version} );
     } else {
       # simple bind
-      writeDebug("proxy bind");
+      #writeDebug("proxy bind");
       $msg = $this->{ldap}->bind($this->{bindDN},password=>$this->{bindPassword});
     }
   }
@@ -442,11 +464,11 @@ sub checkError {
   my ($this, $msg) = @_;
 
   my $code = $this->{code} = $msg->code();
-  if ($code == LDAP_SUCCESS) {
+  if ($code == LDAP_SUCCESS || $code == LDAP_REFERRAL) {
     $this->{error} = undef;
   } else {
     $this->{error} = $code.': '.$msg->error();
-    writeDebug($this->{error});
+    #writeDebug($this->{error});
   } 
  
   return $code;
@@ -484,15 +506,16 @@ sub getCode {
 Fetches an account entry from the database and returns a Net::LDAP::Entry
 object on success and undef otherwise. Note, the login name is match against
 the attribute defined in $ldap->{loginAttribute}. Account records are 
-search using $ldap->{loginFilter} in the subtree defined by $ldap->{userBase}.
+search using $ldap->{loginFilter} in one of the the subtrees defined in
+$ldap->{userBase}.
 
 =cut
 
 sub getAccount {
   my ($this, $loginName) = @_;
 
-  #writeDebug("called getAccount($loginName)");
   return undef if $this->{excludeMap}{$loginName};
+  writeDebug("called getAccount($loginName)");
 
   # take care of login case
   $loginName = lc($loginName) unless $this->{caseSensitiveLogin};
@@ -500,21 +523,27 @@ sub getAccount {
   my $loginFilter = $this->{loginFilter};
   $loginFilter = "($loginFilter)" unless $loginFilter =~ /^\(.*\)$/;
   my $filter = '(&'.$loginFilter.'('.$this->{loginAttribute}.'='.$loginName.'))';
-  my $msg = $this->search(
-    filter=>$filter, 
-    base=>$this->{userBase}
-  );
-  unless ($msg) {
-    writeDebug("no such account");
-    return undef;
-  }
-  if ($msg->count() != 1) {
-    $this->{error} = 'Login invalid';
-    writeDebug($this->{error});
-    return undef;
+
+  my $entry;
+  foreach my $userBase (@{$this->{userBase}}) {
+    my $msg = $this->search(
+      filter=>$filter, 
+      base=>$userBase,
+      deref=>"always",
+      callback => sub {
+	my (undef, $result) = @_;
+	return unless defined $result;
+	$entry = $result;
+      }
+    );
+
+    return $entry if $entry;
   }
 
-  return $msg->entry(0);
+  $this->{error} = 'Login invalid';
+  writeDebug($this->{error});
+
+  return;
 }
 
 
@@ -534,7 +563,14 @@ cleartext message of this search() operation.
 
 Typical usage:
 <verbatim>
-my $result = $ldap->search(filter=>'uid=TestUser');
+$ldap->search(
+  filter=>'uid=TestUser',
+  callback => sub {
+    my ($ldap, $entry) = @_;
+    return unless defined $entry;
+    # process entry
+  }
+);
 </verbatim>
 
 =cut
@@ -543,10 +579,33 @@ sub search {
   my ($this, %args) = @_;
 
   $args{base} = $this->{base} unless $args{base};
+  $args{base} = $this->fromSiteCharSet($args{base});
   $args{scope} = 'sub' unless $args{scope};
   $args{sizelimit} = 0 unless $args{sizelimit};
   $args{attrs} = ['*'] unless $args{attrs};
-  $args{filter} = $this->toUtf8($args{filter}) if $args{filter};
+  $args{filter} = $this->fromSiteCharSet($args{filter}) if $args{filter};
+
+  if (defined($args{callback}) && !defined($args{_origCallback})) {
+
+    $args{_origCallback} = $args{callback};
+
+    $args{callback} = sub {
+      my ($ldap, $entry) = @_;
+
+      # bail out when done
+      return unless defined $entry;
+
+      # follow references
+      if ($entry->isa("Net::LDAP::Reference")) {
+        foreach my $link ($entry->references) {
+          $this->_followLink($link, %args);
+        }
+      } else {
+        # call the orig callback
+        $args{_origCallback}($ldap, $entry);
+      }
+    };
+  }
 
   if ($Foswiki::cfg{Ldap}{Debug}) {
     my $attrString = join(',', @{$args{attrs}});
@@ -568,14 +627,53 @@ sub search {
     writeDebug("sizelimit exceeded");
     return $msg;
   }
-  
-  if ($errorCode != LDAP_SUCCESS) {
+
+  if ($errorCode == LDAP_REFERRAL) {
+    my @referrals = $msg->referrals;
+    foreach my $link (@referrals) {
+#      my $key = $link."::".$args{filter};
+#      if ($this->{_seenReferrals}{$key}) {
+# 	writeWarning("same referral seen twice: $key ... ignoring");
+#      } else {
+#	$this->{_seenReferrals}{$key} = 1;
+ 	$this->_followLink($link, %args);
+#      }
+    }
+  } elsif ($errorCode != LDAP_SUCCESS) {
     writeDebug("error in search: ".$this->getError());
     return undef;
   }
-  writeDebug("found ".$msg->count." entries");
 
   return $msg;
+}
+
+sub _followLink {
+  my ($this, $link, %args) = @_;
+
+  return if $this->{_followingLink};
+  $this->{_followingLink} = 1;
+
+  writeDebug("following ldap url $link");
+  my $uri = URI::ldap->new($link);
+
+
+  # SMELL: cache multiple ldap connections 
+
+  # remember old connection
+  my $oldLdap = $this->{ldap}; 
+
+  # trick in new connection
+  $this->connect(undef, undef, $uri->host, $uri->port);
+  $this->search(%args);
+  $this->disconnect;
+
+  # restore old connection
+  $this->{ldap} = $oldLdap;
+  $this->{isConnected} = 1 if defined $oldLdap;
+
+  $this->{_followingLink} = 0;
+
+  writeDebug("done following ldap url $link");
 }
 
 =pod
@@ -698,7 +796,7 @@ sub refreshCache {
 
   return unless $mode;
   
-  #writeDebug("called refreshCache");
+  writeDebug("called refreshCache(mode=$mode)");
 
   $this->{_refreshMode} = $mode;
 
@@ -717,11 +815,20 @@ sub refreshCache {
   # precache the LDAP directory if enabled in configuration file
   # writeDebug("Config:" . $this->{preCache});
   if ($this->{preCache}) {
-    #writeDebug("precaching is ON.");
-    my $isOk = $this->refreshUsersCache(\%tempData);
+    writeDebug("precaching is ON.");
+
+    my $isOk;
+
+    foreach my $userBase (@{$this->{userBase}}) {
+      $isOk = $this->refreshUsersCache(\%tempData, $userBase);
+      last unless $isOk;
+    }
 
     if ($isOk && $this->{mapGroups}) {
-      $isOk = $this->refreshGroupsCache(\%tempData);
+      foreach my $groupBase (@{$this->{groupBase}}) {
+        $isOk = $this->refreshGroupsCache(\%tempData, $groupBase);
+        last unless $isOk;
+      }
     }
 
     unless ($isOk) { # we had an error: keep the old cache til the error is resolved
@@ -757,7 +864,7 @@ sub refreshCache {
 
 =pod
 
----++ refreshUsersCache($data) -> $boolean
+---++ refreshUsersCache($data, $userBase) -> $boolean
 
 download all user records from the LDAP server and cache it into the
 given hash reference
@@ -767,16 +874,18 @@ returns true if new records have been loaded
 =cut
 
 sub refreshUsersCache {
-  my ($this, $data) = @_;
+  my ($this, $data, $userBase) = @_;
 
-  #writeDebug("called refreshUsersCache()");
+  writeDebug("called refreshUsersCache($userBase)");
   $data ||= $this->{data};
+  $userBase ||= $this->{base};
 
   # prepare search
-  my @args = (
+  my %args = (
     filter=>$this->{loginFilter}, 
-    base=>$this->{userBase},
+    base=>$userBase,
     scope=>$this->{userScope},
+    deref=>"always",
     attrs=>[$this->{loginAttribute}, 
             $this->{mailAttribute},
             $this->{primaryGroupAttribute},
@@ -790,7 +899,7 @@ sub refreshUsersCache {
   if ($this->{pageSize} > 0) {
     require Net::LDAP::Control::Paged;
     $page = Net::LDAP::Control::Paged->new(size => $this->{pageSize});
-    push(@args, control => [$page]);
+    $args{control} = [$page];
     writeDebug("reading users from cache with page size=$this->{pageSize}");
   } else {
     writeDebug("reading users from cache in one chunk");
@@ -801,20 +910,28 @@ sub refreshUsersCache {
   my %wikiNames = ();
   my %loginNames = ();
   my $gotError = 0;
+
+  if (defined $data->{WIKINAMES}) {
+    %wikiNames = map {$_=>1} $data->{WIKINAMES};
+  }
+  if (defined $data->{LOGINNAMES}) {
+    %loginNames = map {$_=>1} $data->{LOGINNAMES};
+  }
+
+  $args{callback} = sub {
+    my ($ldap, $entry) = @_;
+    $this->cacheUserFromEntry($entry, $data, \%wikiNames, \%loginNames) && $nrRecords++;
+  };
+
   while (1) {
 
     # perform search
-    my $mesg = $this->search(@args);
+    my $mesg = $this->search(%args);
     unless ($mesg) {
       writeWarning("error refreshing the user cache: ".$this->getError());
       $gotError = 1 unless $this->getCode() == LDAP_SIZELIMIT_EXCEEDED; # continue on sizelimit exceeded
       last;
     }
-
-    # process each entry on a page
-    while (my $entry = $mesg->pop_entry()) {
-      $this->cacheUserFromEntry($entry, $data, \%wikiNames, \%loginNames) && $nrRecords++;
-    } 
 
     # only use cookies and pages if we are using this extension
     if ($page) {
@@ -830,6 +947,9 @@ sub refreshUsersCache {
         #writeDebug("ok, no more cookie");
         last;
       }
+    } else {
+      # one chunk ends here
+      last;
     }
   } # end reading pages
   #writeDebug("done reading pages");
@@ -838,7 +958,7 @@ sub refreshUsersCache {
   if ($cookie) {
     $page->cookie($cookie);
     $page->size(0);
-    $this->search(@args);
+    $this->search(%args);
   }
 
   # check for error
@@ -914,7 +1034,7 @@ sub resolveWikiNameClashes {
 
 =pod
 
----++ refreshGroups($data) -> $boolean
+---++ refreshGroupsCache($data, $groupBase) -> $boolean
 
 download all group records from the LDAP server
 
@@ -923,15 +1043,16 @@ returns true if new records have been loaded
 =cut
 
 sub refreshGroupsCache {
-  my ($this, $data) = @_;
+  my ($this, $data, $groupBase) = @_;
 
   $data ||= $this->{data};
 
   # prepare search
-  my @args = (
+  my %args = (
     filter=>$this->{groupFilter}, 
-    base=>$this->{groupBase}, 
+    base=>$groupBase, 
     scope=>$this->{groupScope},
+    deref=>"always",
     attrs=>[
       $this->{groupAttribute}, 
       $this->{memberAttribute}, 
@@ -946,28 +1067,29 @@ sub refreshGroupsCache {
   if ($this->{pageSize} > 0) {
     require Net::LDAP::Control::Paged;
     $page = Net::LDAP::Control::Paged->new(size => $this->{pageSize});
-    push(@args, control => [$page]);
+    $args{control} = [$page];
   } else {
     #writeDebug("reading group from cache in one chunk");
   }
 
   # read pages
   my $nrRecords = 0;
-  my %groupNames;
+  my %groupNames = map { $_ => 1 } @{ $this->getGroupNames($data) };
   my $gotError = 0;
+
+  $args{callback} = sub {
+    my ($ldap, $entry) = @_;
+    $this->cacheGroupFromEntry($entry, $data, \%groupNames) && $nrRecords++;
+  };
+
   while (1) {
 
     # perform search
-    my $mesg = $this->search(@args);
+    my $mesg = $this->search(%args);
     unless ($mesg) {
       #writeDebug("oops, no result querying for groups");
       writeWarning("error refeshing the groups cache: ".$this->getError());
       last;
-    }
-
-    # process each entry on a page
-    while (my $entry = $mesg->pop_entry()) {
-      $this->cacheGroupFromEntry($entry, $data, \%groupNames) && $nrRecords++;
     }
 
     # only use cookies and pages if we are using this extension
@@ -993,7 +1115,7 @@ sub refreshGroupsCache {
   if ($cookie) {
     $page->cookie($cookie);
     $page->size(0);
-    $this->search(@args);
+    $this->search(%args);
   }
 
   # check for error
@@ -1005,7 +1127,7 @@ sub refreshGroupsCache {
       my $groupName = $this->{_groupId}{$groupId};
       next unless $groupName;
       foreach my $member (keys %{$this->{_primaryGroup}{$groupId}}) {
-        #writeDebug("adding $member to its primary group $groupName");
+        writeDebug("adding $member to its primary group $groupName");
         $this->{_groups}{$groupName}{$member} = 1;
       }
     }
@@ -1020,12 +1142,12 @@ sub refreshGroupsCache {
       # groups may store DNs to members instead of a memberUid, in this case we
       # have to lookup the corresponding loginAttribute
       if ($this->{memberIndirection}) {
-        writeDebug("following indirection for $member");
+        #writeDebug("following indirection for $member");
         my $memberName = $data->{"DN2U::$member"};
         if ($memberName) {
           $members{$memberName} = 1;
         } else {
-          writeWarning("oops, $member not found, but member of $groupName");
+          #writeWarning("oops, $member not found, but member of $groupName");
         } 
       } else {
         $members{$member} = 1;
@@ -1061,7 +1183,7 @@ returns true if new records have been created
 sub cacheUserFromEntry {
   my ($this, $entry, $data, $wikiNames, $loginNames, $wikiName) = @_;
 
-  writeDebug("called cacheUserFromEntry()");
+  #writeDebug("called cacheUserFromEntry()");
 
   $data ||= $this->{data};
   $wikiNames ||= {};
@@ -1077,7 +1199,7 @@ sub cacheUserFromEntry {
     writeDebug("no loginName for $dn ... skipping");
     return 0;
   }
-  $loginName = $this->fromUtf8($loginName);
+  $loginName = $this->toSiteCharSet($loginName);
 
   # 2. normalize
   $loginName = lc($loginName) unless $this->{caseSensitiveLogin};
@@ -1107,15 +1229,17 @@ sub cacheUserFromEntry {
         next unless $value;
         $value =~ s/^\s+//o;
         $value =~ s/\s+$//o;
-        $value = $this->fromUtf8($value);
+        $value = $this->toSiteCharSet($value);
         #writeDebug("$attr=$value");
         push @wikiName, $value;
       }
       $wikiName = join(" ", @wikiName);
 
       unless ($wikiName) {
-        $wikiName = $loginName;
-        writeWarning("no WikiNameAttributes found for $dn ... deriving WikiName from LoginName: '$wikiName'");
+        #$wikiName = $loginName;
+        #writeWarning("no WikiNameAttributes found for $dn ... deriving WikiName from LoginName: '$wikiName'");
+        writeWarning("no WikiNameAttributes found for $dn ... ignoring");
+	return 0;
       }
 
       # 2. rewrite
@@ -1285,7 +1409,7 @@ sub cacheGroupFromEntry {
   }
   $groupName =~ s/^\s+//o;
   $groupName =~ s/\s+$//o;
-  $groupName = $this->fromUtf8($groupName);
+  $groupName = $this->toSiteCharSet($groupName);
 
   if ($this->{normalizeGroupName}) {
     $groupName = $this->normalizeWikiName($groupName);
@@ -1965,7 +2089,7 @@ sub checkCacheForLoginName {
   
   return 0 unless($loginName);
 
-  #writeDebug("called checkCacheForLoginName($loginName)");
+  writeDebug("called checkCacheForLoginName($loginName)");
 
   $loginName = lc($loginName) unless $this->{caseSensitiveLogin};
   $data ||= $this->{data};
@@ -2239,7 +2363,7 @@ sub checkCacheForGroupName {
       # have to lookup the corresponding loginAttribute
       if ($this->{memberIndirection}) {
 
-        writeDebug("following indirection for $member");
+        #writeDebug("following indirection for $member");
 
         my $memberName = $data->{"DN2U::$member"};
         if ($memberName) {
@@ -2261,7 +2385,7 @@ sub checkCacheForGroupName {
             }
           }
 
-          writeWarning("oops, $member not found, but member of $groupName");
+          #writeWarning("oops, $member not found, but member of $groupName");
           $uncachedMembersDn{$member} = 1;
         }
       } else {
@@ -2300,73 +2424,62 @@ sub getGroup {
   return undef if $this->{excludeMap}{$groupName};
 
   my $filter = '(&(' . $this->{groupFilter} . ')(' . $this->{groupAttribute} . '=' . $groupName . '))';
-  my $msg = $this->search(
-    filter => $filter,
-    base => $this->{groupBase}
-  );
+  my $entry;
 
-  unless ($msg) {
-    #writeDebug("no such group");
-    return undef;
+  foreach my $groupBase (@{$this->{groupBase}}) {
+    my $msg = $this->search(
+      filter => $filter,
+      base => $groupBase,
+      callback => sub {
+        my (undef, $result) = @_;
+        return unless defined $result;
+        $entry = $result;
+      }
+    );
+    return $entry if $entry;
   }
 
-  if ($msg->count() != 1) {
-    $this->{error} = 'Group invalid';
 
-    #writeDebug($this->{error});
-    return undef;
-  }
+  $this->{error} = 'Group invalid';
+  #writeDebug($this->{error});
 
-  return $msg->entry(0);
+  return;
 }
 
 =pod
 
----++ fromUtf8($string) -> $string
+---++ toSiteCharSet($string) -> $string
 
 recode strings coming from ldap to the site's character set
 
 =cut
 
-sub fromUtf8 {
-  my ($this, $utf8string) = @_;
+sub toSiteCharSet {
+  my ($this, $string) = @_;
 
-  my $charset = $Foswiki::cfg{Site}{CharSet};
-  return $utf8string if $charset =~ /^utf-?8$/i;
+  my $siteCharSet = $Foswiki::cfg{Site}{CharSet};
+  my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
 
-  my $encoding = Encode::resolve_alias($charset);
-  if (not $encoding) {
-    $this->writeWarning('Conversion to "' . $charset . '" not supported, or name not recognised - check ' . '"perldoc Encode::Supported"');
-    return $utf8string;
-  } else {
-
-    my $octets = Encode::decode('utf-8', $utf8string);
-    return Encode::encode($encoding, $octets, &Encode::FB_HTMLCREF());
-  }
+  my $octets = Encode::decode($ldapCharSet, $string);
+  return Encode::encode($siteCharSet, $octets);
 }
 
 =begin text
 
----++ toUtf8($string) -> $utf8string
+---++ fromSiteCharSet($string) -> $string
 
 encode strings coming from the site to be used talking to the ldap directory
 
 =cut
 
-sub toUtf8 {
+sub fromSiteCharSet {
   my ($this, $string) = @_;
 
-  my $charset = $Foswiki::cfg{Site}{CharSet};
-  return $string if $charset =~ /^utf-?8$/i;
+  my $siteCharSet = $Foswiki::cfg{Site}{CharSet};
+  my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
 
-  my $encoding = Encode::resolve_alias($charset);
-  if (not $encoding) {
-    $this->writeWarning('Conversion to "' . $charset . '" not supported, or name not recognised - check ' . '"perldoc Encode::Supported"');
-    return undef;
-  } else {
-    my $octets = Encode::decode($encoding, $string, &Encode::FB_PERLQQ());
-    return Encode::encode('utf-8', $octets);
-  }
+  my $octets = Encode::decode($siteCharSet, $string);
+  return Encode::encode($ldapCharSet, $octets);
 }
 
 1;

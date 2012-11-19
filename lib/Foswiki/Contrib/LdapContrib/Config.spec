@@ -1,5 +1,5 @@
 # ---+ Extensions
-# ---++ LDAP Contrib
+# ---++ LDAP 
 # This is the configuration used by the <b>LdapContrib</b> and the
 # <b>LdapNgPlugin</b>. 
 # <p>
@@ -35,6 +35,17 @@ $Foswiki::cfg{Ldap}{BindDN} = '';
 # **PASSWORD**
 # The password used when binding to the LDAP server
 $Foswiki::cfg{Ldap}{BindPassword} = 'secret';
+
+# **STRING**
+# Set this to the charset encoding of data coming from the LDAP server.
+# Normally this should be 'utf-8', but might differ in some cases.
+# Data read from the server will then be converted from this encoding
+# and translated to your site's charset encoding as configured in <code>{Site}{CharSet}</code>.
+# WARNING: if you change the charset encoding after having used a different one for some time
+# you will require to remove all cached data in <code>.../working/work_areas/LdapContrib</code>
+# and <code>.../working/work_areas/LdapNgPlugin/cache</code>. Otherwise this data 
+# will be reused assuming a false charset encoding.
+$Foswiki::cfg{Ldap}{CharSet} = 'utf-8';
 
 # **BOOLEAN**
 # Use SASL authentication when binding to the server; Note, when using SASL the 
@@ -87,10 +98,9 @@ $Foswiki::cfg{Ldap}{Debug} = 0;
 # ---+++ User settings
 # The options below configure how the wiki will extract account records from LDAP.
  
-# **STRING**
-# The distinguished name of the users tree. All user accounts will
-# be searched for in the subtree under UserBase.
-$Foswiki::cfg{Ldap}{UserBase} = 'ou=people,dc=my,dc=domain,dc=com';
+# **PERL**
+# A list of trees where to search for users records. 
+$Foswiki::cfg{Ldap}{UserBase} = ['ou=people,dc=my,dc=domain,dc=com'];
 
 # **STRING**
 # Filter to be used to find login accounts. Compare to GroupFilter below
@@ -168,10 +178,9 @@ $Foswiki::cfg{Ldap}{SecondaryPasswordManager} = 'none';
 # In any case you have to select the LdapUserMapping as the UserMappingManager in the
 # Security Section section above.
 
-# **STRING**
-# The distinguished name of the groups tree. All group definitions
-# are used in the subtree under GroupBase. 
-$Foswiki::cfg{Ldap}{GroupBase} = 'ou=group,dc=my,dc=domain,dc=com';
+# **PERL**
+# A list of trees where to search for group records.
+$Foswiki::cfg{Ldap}{GroupBase} = ['ou=group,dc=my,dc=domain,dc=com'];
 
 # **STRING**
 # Filter to be used to find groups. Compare to LoginFilter.
@@ -271,3 +280,5 @@ $Foswiki::cfg{Ldap}{PageSize} = 500;
 # **STRING 50**
 # Prevent certain names from being looked up in LDAP
 $Foswiki::cfg{Ldap}{Exclude} = 'WikiGuest, ProjectContributor, RegistrationAgent, UnknownUser, AdminGroup, NobodyGroup, AdminUser, admin, guest';
+
+1;

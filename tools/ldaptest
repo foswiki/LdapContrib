@@ -1,5 +1,27 @@
 #!/usr/bin/perl -w
-use Net::LDAP;
+# Test program to check your ldap connectivity using perl
+#
+# Copyright (C) 2006-2012 Michael Daum http://michaeldaumconsulting.com
+# Portions Copyright (C) 2006 Spanlink Communications
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version. For
+# more details read LICENSE in the root of this distribution.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+#
+# As per the GPL, removal of this notice is prohibited.
+
+use strict;
+use warnings;
+use open qw(:std :utf8);
+
+use Net::LDAP qw(LDAP_REFERRAL);
+use URI::ldap;
 
 # usage: ldaptet 'ldap-query'
 
@@ -13,39 +35,78 @@ my $baseDN = 'dc=nodomain';
 
 # username and credentials used to connect to the LDAP server;
 # if unset an anonymous connect will be used
-# CAUTION: when typing in a password, this is plain text. 
+# CAUTION: when typing in a password, this is plain text.
 # please make sure that this file is only readable for authorized personell
-my $bindUser = ''; 
+my $bindUser = '';
 my $bindPassword = '';
 
 # maximum number of records returned
 my $sizeLimit = 10;
 
+# possible values: "never", "search", "find", "always"
+my $deref = "always";
+
 ###############################################################
+ldapSearch($server, $baseDN, $ARGV[0] || '(objectClass=*)');
 
-my $filter = $ARGV[0] || '(objectClass=*)';
+###############################################################
+sub ldapSearch {
+  my ($server, $dn, $filter, $noFollow) = @_;
+  my $ldap = Net::LDAP->new($server) || die "$@";
+  my $mesg;
 
-my $ldap = Net::LDAP->new($server) || die "$@";
+  if ($bindUser) {
+    $mesg = $ldap->bind($bindUser, password => $bindPassword);
+  } else {
+    $mesg = $ldap->bind();
+  }
+  my $code = $mesg->code;
+  $code && die "$code: " . $mesg->error;
 
-my $mesg;
-if ($bindUser) {
-  $mesg = $ldap->bind($bindUser, password=>$bindPassword);
-} else {
-  $mesg = $ldap->bind();
+  $mesg = $ldap->search(
+    filter => $filter,
+    base => $dn,
+    deref => "always",
+    sizelimit => $sizeLimit,
+    callback => sub {
+      my ($ldap, $entry) = @_;
+      processSearch($ldap, $entry, $filter);
+    },
+  );
+  $code = $mesg->code;
+
+  print "code=$code\n" if $code;
+
+  if (!$noFollow && $code == LDAP_REFERRAL) {
+    foreach my $link ($mesg->referrals) {
+      followUrl($link, $filter);
+    }
+  } elsif ($code && $code != 4) {
+    die "$code: " . $mesg->error;
+  }
 }
-my $code = $mesg->code;
-$code && die "$code: ".$mesg->error;
-$mesg = $ldap->search(
-  filter=>$filter,
-  base=>$baseDN,
-  sizelimit=>$sizeLimit,
-);
-$code = $mesg->code;
-if ($code && $code != 4) {
-  die "$code: ".$mesg->error;
+
+###############################################################
+sub processSearch {
+  my ($ldap, $entry, $filter) = @_;
+
+  return unless defined $entry;
+  if ($entry->isa("Net::LDAP::Reference")) {
+    foreach my $link ($entry->references) {
+      followUrl($link, $filter);
+    }
+  } else {
+    $entry->dump();
+    print "\n";
+  }
 }
 
-my @entries = $mesg->entries;
-foreach $entry (@entries) {
-  $entry->dump;
+###############################################################
+sub followUrl {
+  my ($url, $filter) = @_;
+
+  print "following $url\n";
+  my $link = URI::ldap->new($url);
+
+  ldapSearch($link->host, $link->dn, $filter, 1);
 }

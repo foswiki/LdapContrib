@@ -20,6 +20,7 @@ use Foswiki::Users::Password;
 our @ISA = qw( Foswiki::Users::Password );
 
 use strict;
+use warnings;
 
 use Foswiki::Contrib::LdapContrib ();
 use Foswiki::Plugins ();
@@ -127,11 +128,12 @@ sub fetchPass {
   my $passwd = $this->{passwords}{$login};
 
   unless (defined $passwd) {
-    my $entry = $this->{ldap}->getAccount($login); # expensive
-
-    $passwd = $entry->get_value('userPassword') if $entry;
-    $passwd = $this->{secondaryPasswordManager}->fetchPass($login)
-      if !defined($passwd) && $this->{secondaryPasswordManager};
+    $passwd = $this->userExists($login);
+#   my $entry = $this->{ldap}->getAccount($login); # expensive
+#
+#   $passwd = $entry->get_value('userPassword') if $entry;
+#   $passwd = $this->{secondaryPasswordManager}->fetchPass($login)
+#     if !defined($passwd) && $this->{secondaryPasswordManager};
 
     $passwd = 0 unless defined $passwd;
     $this->{passwords}{$login} = $passwd;
@@ -467,6 +469,5 @@ sub fetchUsers {
   #print STDERR "fetchUsers=".join(',', @$users)."\n";
   return new Foswiki::ListIterator($users);
 }
-
 
 1;

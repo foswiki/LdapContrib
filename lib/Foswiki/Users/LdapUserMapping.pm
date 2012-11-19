@@ -130,8 +130,8 @@ sub getLoginName {
 
   $login = lc($login) unless $this->{ldap}{caseSensitiveLogin};
 
-  return undef unless $this->{ldap}->getWikiNameOfLogin($login);
-  return undef unless ($cUID eq $this->login2cUID($login));
+  return unless $this->{ldap}->getWikiNameOfLogin($login);
+  return unless ($cUID eq $this->login2cUID($login));
 
   return $login;
 }
@@ -333,7 +333,7 @@ returns a list iterator for all groups members
 sub eachGroupMember {
   my ($this, $groupName, $options) = @_;
 
-  writeDebug("called eachGroupMember($groupName)");
+  #writeDebug("called eachGroupMember($groupName)");
   return $this->SUPER::eachGroupMember($groupName, $options)
     unless $this->{ldap}{mapGroups};
 
@@ -536,6 +536,7 @@ This is used for registration)
 sub login2cUID {
   my ($this, $name, $dontcheck) = @_;
 
+  my $origName = $name;
   #writeDebug("called login2cUID($name)");
 
   my $loginName = $this->{ldap}->getLoginOfWikiName($name);
@@ -549,6 +550,7 @@ sub login2cUID {
     return undef unless $wikiName || $loginName;
   }
 
+  $cUID = $this->SUPER::login2cUID($origName, $dontcheck) unless defined $cUID;
   return $cUID;
 }
 
