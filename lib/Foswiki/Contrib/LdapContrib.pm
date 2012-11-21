@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '5.01';
-our $RELEASE = '5.01';
+our $VERSION = '5.02';
+our $RELEASE = '5.02';
 our %sharedLdapContrib;
 
 =pod
@@ -596,6 +596,7 @@ sub search {
       # follow references
       if ($entry->isa("Net::LDAP::Reference")) {
         foreach my $link ($entry->references) {
+          writeDebug("following reference $link");
           $this->_followLink($link, %args);
         }
       } else {
@@ -630,6 +631,7 @@ sub search {
     unless ($this->{_followingLink}) {
       my @referrals = $msg->referrals;
       foreach my $link (@referrals) {
+        writeDebug("following referral $link");
         $this->_followLink($link, %args);
       }
     }

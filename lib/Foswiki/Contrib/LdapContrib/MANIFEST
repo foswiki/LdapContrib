@@ -1,4 +1,3 @@
-pub/System/LdapContrib/blobs/ 0775
 data/System/LdapContrib.txt 0644
 lib/Foswiki/Contrib/LdapContrib/Config.spec 0644
 lib/Foswiki/Contrib/LdapContrib.pm 0644
