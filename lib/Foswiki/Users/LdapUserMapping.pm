@@ -49,13 +49,12 @@ object to delegate LDAP services to.
 sub new {
   my ($class, $session) = @_;
 
-  my $this = bless($class->SUPER::new( $session ), $class);
+  my $this = bless($class->SUPER::new($session), $class);
   $this->{ldap} = &Foswiki::Contrib::LdapContrib::getLdapContrib($session);
   $this->{eachGroupMember} = {};
 
   return $this;
 }
-
 
 =pod
 
@@ -68,7 +67,7 @@ to. I.e. it disconnects the LDAP database connection.
 
 sub finish {
   my $this = shift;
-    
+
   $this->{ldap}->finish() if $this->{ldap};
   undef $this->{ldap};
   undef $this->{eachGroupMember};
@@ -86,7 +85,6 @@ Static method to write a debug messages.
 sub writeDebug {
   print STDERR "- LdapUserMapping - $_[0]\n" if $Foswiki::cfg{Ldap}{Debug};
 }
-
 
 =pod
 
@@ -136,7 +134,6 @@ sub getLoginName {
   return $login;
 }
 
-
 =pod
 
 ---++ getWikiName ($cUID) -> wikiname
@@ -149,7 +146,7 @@ sub getWikiName {
   my ($this, $cUID) = @_;
 
   #writeDebug("called LdapUserMapping::getWikiName($cUID)");
-    
+
   my $loginName = $this->getLoginName($cUID);
   return undef unless $loginName;
 
@@ -158,7 +155,7 @@ sub getWikiName {
   my $wikiName;
 
   unless ($this->{ldap}{excludeMap}{$loginName}) {
-    $wikiName = $this->{ldap}->getWikiNameOfLogin($loginName); 
+    $wikiName = $this->{ldap}->getWikiNameOfLogin($loginName);
     $wikiName = undef if !$wikiName || $wikiName eq '_unknown_';
   }
 
@@ -172,9 +169,8 @@ sub getWikiName {
   # fallback fallback
   $wikiName ||= $loginName;
 
-
   #writeDebug("returning $wikiName");
-  return $wikiName; 
+  return $wikiName;
 }
 
 =pod 
@@ -211,7 +207,6 @@ sub getEmails {
 
   return values %$emails;
 }
-
 
 =pod
 
@@ -266,7 +261,6 @@ sub eachUser {
   my $backOffIter = $this->SUPER::eachUser(@_);
   my @list = ($ldapIter, $backOffIter);
 
-
   return new Foswiki::AggregateIterator(\@list, 1);
 }
 
@@ -283,7 +277,7 @@ sub eachGroup {
 
   my @groups = $this->getListOfGroups();
 
-  return new Foswiki::ListIterator(\@groups );
+  return new Foswiki::ListIterator(\@groups);
 }
 
 =pod
@@ -302,7 +296,7 @@ sub getListOfGroups {
   #writeDebug("called getListOfGroups()");
 
   my %groups;
-  
+
   return @{$this->SUPER::_getListOfGroups()}
     unless $this->{ldap}{mapGroups};
 
@@ -320,7 +314,6 @@ sub getListOfGroups {
   #writeDebug("got " . (scalar keys %groups) . " overall groups=".join(',',keys %groups));
   return keys %groups;
 }
-
 
 =pod
 
@@ -361,7 +354,7 @@ sub eachGroupMember {
 
           #writeDebug("asking SUPER");
           my $listResult = $this->SUPER::eachGroupMember($groupName, $options);
-          $result = [ $listResult->all ] if $listResult && $listResult->{list};    # SMELL: breaks encapsulation of list iterator, but hey
+          $result = [$listResult->all] if $listResult && $listResult->{list};    # SMELL: breaks encapsulation of list iterator, but hey
         }
       } else {
         foreach my $login (@$members) {
@@ -398,7 +391,7 @@ sub eachMembership {
 
   my @groups = $this->getListOfGroups();
 
-  my $it = new Foswiki::ListIterator( \@groups );
+  my $it = new Foswiki::ListIterator(\@groups);
   $it->{filter} = sub {
     $this->isInGroup($cUID, $_[0]);
   };
@@ -425,7 +418,7 @@ sub isGroup {
   #writeDebug("called isGroup($user)");
 
   # may be called using a user object or a wikiName of a user
-  my $wikiName = (ref $user)?$user->wikiName:$user;
+  my $wikiName = (ref $user) ? $user->wikiName : $user;
 
   # special treatment for build-in groups
   return 1 if $wikiName eq $Foswiki::cfg{SuperAdminGroup};
@@ -440,7 +433,7 @@ sub isGroup {
   # backoff if it does not know
   if (!defined($isGroup) && $this->{ldap}{nativeGroupsBackoff}) {
     $isGroup = $this->SUPER::isGroup($user) if ref $user;
-    $isGroup = ($wikiName =~ /Group$/); 
+    $isGroup = ($wikiName =~ /Group$/);
   }
 
   return $isGroup;
@@ -540,10 +533,10 @@ sub login2cUID {
   #writeDebug("called login2cUID($name)");
 
   my $loginName = $this->{ldap}->getLoginOfWikiName($name);
-  $name = $loginName if defined $loginName; # called with a wikiname
+  $name = $loginName if defined $loginName;    # called with a wikiname
 
   $name = lc($name) unless $this->{ldap}{caseSensitiveLogin};
-  my $cUID = $this->{mapping_id}.Foswiki::Users::mapLogin2cUID($name);
+  my $cUID = $this->{mapping_id} . Foswiki::Users::mapLogin2cUID($name);
 
   unless ($dontcheck) {
     my $wikiName = $this->{ldap}->getWikiNameOfLogin($name);
@@ -568,15 +561,12 @@ this method only returns 1 if the group is a topic-based group
 sub groupAllowsChange {
   my ($this, $group, $cuid) = @_;
 
-  my ($groupWeb, $groupName) = 
-    $this->{session}->normalizeWebTopicName($Foswiki::cfg{UsersWebName}, $group);
+  my ($groupWeb, $groupName) = $this->{session}->normalizeWebTopicName($Foswiki::cfg{UsersWebName}, $group);
 
   return $this->SUPER::groupAllowsChange($group, $cuid)
     if $this->{session}->topicExists($groupWeb, $groupName);
 
   return 0;
 }
-
-
 
 1;

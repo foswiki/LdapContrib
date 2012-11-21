@@ -505,6 +505,9 @@ This work was partly sponsored by
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  21 Nov 2012: | fixed ldap login manager using old api; \
+                  fixed recursive traversal of distributed ldap directories; \
+                  storing all blobs into a subdirectory of their own reachable by the web server |
 |  19 Nov 2012: | fixed non-paged requests no terminating; \
                   fixed encoding of baseDN in search; \
                   fixed case comparison when excluding wiki names; \
