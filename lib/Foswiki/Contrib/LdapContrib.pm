@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '5.02';
-our $RELEASE = '5.02';
+our $VERSION = '5.03';
+our $RELEASE = '5.03';
 our %sharedLdapContrib;
 
 =pod
@@ -1192,7 +1192,7 @@ sub cacheUserFromEntry {
     writeDebug("no loginName for $dn ... skipping");
     return 0;
   }
-  $loginName = $this->toSiteCharSet($loginName);
+  $loginName = $this->fromLdapCharSet($loginName);
 
   # 2. normalize
   $loginName = lc($loginName) unless $this->{caseSensitiveLogin};
@@ -1222,7 +1222,7 @@ sub cacheUserFromEntry {
         next unless $value;
         $value =~ s/^\s+//o;
         $value =~ s/\s+$//o;
-        $value = $this->toSiteCharSet($value);
+        $value = $this->fromLdapCharSet($value);
         #writeDebug("$attr=$value");
         push @wikiName, $value;
       }
@@ -1401,7 +1401,7 @@ sub cacheGroupFromEntry {
   }
   $groupName =~ s/^\s+//o;
   $groupName =~ s/\s+$//o;
-  $groupName = $this->toSiteCharSet($groupName);
+  $groupName = $this->fromLdapCharSet($groupName);
 
   if ($this->{normalizeGroupName}) {
     $groupName = $this->normalizeWikiName($groupName);
@@ -1779,7 +1779,7 @@ sub isGroup {
   return 1 if defined($data->{"GROUPS::$wikiName"});
   return 0 if defined($data->{"W2U::$wikiName"});
 
-  my $loginName = lc($wikiName) unless $this->{caseSensitiveLogin};
+  my $loginName = $this->{caseSensitiveLogin} ? $wikiName : lc($wikiName);
   return 0 if defined($data->{"U2W::$loginName"});
 
   unless ($this->{preCache}) {
@@ -2430,20 +2430,17 @@ sub getGroup {
 
 =pod
 
----++ toSiteCharSet($string) -> $string
+---++ fromLdapCharSet($string) -> $string
 
-recode strings coming from ldap to the site's character set
+decode strings coming from ldap 
 
 =cut
 
-sub toSiteCharSet {
+sub fromLdapCharSet {
   my ($this, $string) = @_;
 
-  my $siteCharSet = $Foswiki::cfg{Site}{CharSet};
   my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
-
-  my $octets = Encode::decode($ldapCharSet, $string);
-  return Encode::encode($siteCharSet, $octets);
+  return Encode::decode($ldapCharSet, $string);
 }
 
 =begin text
@@ -2458,10 +2455,8 @@ sub fromSiteCharSet {
   my ($this, $string) = @_;
 
   my $siteCharSet = $Foswiki::cfg{Site}{CharSet};
-  my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
 
-  my $octets = Encode::decode($siteCharSet, $string);
-  return Encode::encode($ldapCharSet, $octets);
+  return Encode::decode($siteCharSet, $string);
 }
 
 1;

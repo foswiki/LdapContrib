@@ -498,6 +498,7 @@ This work was partly sponsored by
    * [[http://www.ibm.com][IBM]]
    * [[http://www.dfs.de][Deutsche Flugsicherung]]
    * [[http://www.testo.de][Testo]]
+   * [[http://www.1and1.com][1&1]]
 
 |  Author: | Michael Daum |
 |  Copyright&nbsp;&copy;: | 2006-2012 Michael Daum http://michaeldaumconsulting.com |
@@ -505,6 +506,7 @@ This work was partly sponsored by
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  29 Nov 2012: | fixed decoding of ldap strings |
 |  21 Nov 2012: | fixed ldap login manager using old api; \
                   fixed recursive traversal of distributed ldap directories; \
                   storing all blobs into a subdirectory of their own reachable by the web server |
