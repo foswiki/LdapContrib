@@ -1,6 +1,6 @@
 # Module of Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# Copyright (C) 2006-2012 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2006-2014 Michael Daum http://michaeldaumconsulting.com
 # Portions Copyright (C) 2006 Spanlink Communications
 #
 # This program is free software; you can redistribute it and/or
@@ -24,14 +24,14 @@ use Net::LDAP qw(LDAP_REFERRAL);
 use URI::ldap;
 use Net::LDAP::Constant qw(LDAP_SUCCESS LDAP_SIZELIMIT_EXCEEDED LDAP_CONTROL_PAGED);
 use Net::LDAP::Extension::SetPassword;
-use DB_File;
+use DB_File::Lock;
 use Encode ();
 
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '5.04';
-our $RELEASE = '5.04';
+our $VERSION = '6.00';
+our $RELEASE = '6.00';
 our %sharedLdapContrib;
 
 =pod
@@ -153,9 +153,10 @@ sub new {
     base => $Foswiki::cfg{Ldap}{Base} || '',
     port => $Foswiki::cfg{Ldap}{Port} || 389,
     version => $Foswiki::cfg{Ldap}{Version} || 3,
+    ipv6 => $Foswiki::cfg{Ldap}{IPv6} || 0,
 
     userBase => $Foswiki::cfg{Ldap}{UserBase}
-      || $Foswiki::cfg{Ldap}{Base}
+      || [$Foswiki::cfg{Ldap}{Base}]
       || [],
 
     userScope => $Foswiki::cfg{Ldap}{UserScope}
@@ -257,6 +258,11 @@ sub new {
   mkdir $workArea unless -d $workArea;
   $this->{cacheFile} = $workArea . '/cache.db';
 
+  # Locking parameters 
+  $this->{locking}{'nonblocking'} = 0; # wait, not croak if lock is set
+  $this->{locking}{'lockfile_name'} = $this->{cacheFile} . '.lock';
+  $this->{locking}{'lockfile_mode'} = 0600;
+
   # normalize normalization flags
   $this->{normalizeWikiName} = $Foswiki::cfg{Ldap}{NormalizeWikiName}
     unless defined $this->{normalizeWikiName};
@@ -331,7 +337,7 @@ sub connect {
   my ($this, $dn, $passwd, $host, $port) = @_;
 
   #writeDebug("called connect");
-  #writeDebug("dn=$dn", 2) if $dn;
+  #writeDebug("dn=$dn") if $dn;
   #writeDebug("passwd=***", 2) if $passwd;
 
   $host ||= $this->{host};
@@ -341,10 +347,15 @@ sub connect {
     $host,
     port => $port,
     version => $this->{version},
+    inet4 => ($this->{ipv6}?0:1),
+    inet6 => ($this->{ipv6}?1:0),
   );
+
   unless ($this->{ldap}) {
     $this->{error} = "failed to connect to $this->{host}";
     $this->{error} .= ": $@" if $@;
+    #writeDebug("failed to connect: $this->{error}");
+    $this->{isConnected} = 0;
     return 0;
   }
 
@@ -396,12 +407,12 @@ sub connect {
 
   # anonymous bind
   else {
-    writeDebug("anonymous bind");
+    #writeDebug("anonymous bind");
     $msg = $this->{ldap}->bind;
   }
 
   $this->{isConnected} = ($this->checkError($msg) == LDAP_SUCCESS) ? 1 : 0;
-  writeDebug("failed to bind") unless $this->{isConnected};
+  #writeDebug("failed to bind") unless $this->{isConnected};
   return $this->{isConnected};
 }
 
@@ -444,8 +455,7 @@ sub finish {
   $this->disconnect();
   delete $sharedLdapContrib{$this->{session}};
 
-  undef $this->{cacheDB};
-  untie %{$this->{data}};
+  $this->untieCache();
 }
 
 =pod
@@ -730,6 +740,60 @@ sub cacheBlob {
 
 =pod
 
+---++ tieCache($mode)
+
+tie the cache with $mode. 
+$mode 'read' ties the cache successfully given that there is only other 'read' locks on it.
+$mode 'write' ties the cache successfully given that there is no locks on it.
+
+=cut
+
+sub tieCache {
+  my ($this, $mode) = @_;
+
+  die unless $mode =~ m/^read|write$/;
+
+  my $locking = {
+    'mode' => $mode,
+    'nonblocking' => $this->{locking}{nonblocking},
+    'lockfile_name' => $this->{locking}{lockfile_name},
+    'lockfile_mode' => $this->{locking}{lockfile_mode}
+  };
+
+  # Create the cache unless it exists
+  unless (-e $this->{cacheFile}) {
+    $locking->{'mode'} = 'write';
+    my %db_hash;
+    my $x = tie(%db_hash, 'DB_File::Lock', $this->{cacheFile}, O_CREAT, 0664, $DB_HASH, $locking);
+    undef($x);
+    untie(%db_hash);
+    $locking->{'mode'} = $mode;
+  }
+
+  my $tie_flag = ($mode eq 'read' ? O_RDONLY : O_RDWR);
+
+  $this->{cacheDB} = tie %{$this->{data}}, 'DB_File::Lock', $this->{cacheFile}, $tie_flag, 0664, $DB_HASH, $locking
+    or die "Error tieing cache file $this->{cacheFile}: $!";
+}
+
+
+=pod
+
+---++ untieCache()
+
+unties the cache
+
+=cut
+
+sub untieCache {
+  my ($this) = @_;
+
+  undef $this->{cacheDB};
+  untie %{$this->{data}};
+}
+
+=pod
+
 ---++ initCache()
 
 loads/connects to the LDAP cache
@@ -747,8 +811,7 @@ sub initCache {
 
   # open cache
   #writeDebug("opening ldap cache from $this->{cacheFile}");
-  $this->{cacheDB} = tie %{$this->{data}}, 'DB_File', $this->{cacheFile}, O_CREAT | O_RDWR, 0664, $DB_HASH
-    or die "Cannot open file $this->{cacheFile}: $!";
+  $this->tieCache('read');
 
   # refresh by user interaction
   my $refresh = '';
@@ -847,15 +910,13 @@ sub refreshCache {
   untie %tempData;
 
   # try to be transactional
-  undef $this->{cacheDB};
-  untie %{$this->{data}};
+  $this->untieCache();
 
   #writeDebug("replacing working copy");
   rename $tempCacheFile, $this->{cacheFile};
 
   # reconnect hash
-  $this->{cacheDB} = tie %{$this->{data}}, 'DB_File', $this->{cacheFile}, O_CREAT | O_RDWR, 0664, $DB_HASH
-    or die "Cannot open file $this->{cacheFile}: $!";
+  $this->tieCache('read');
 
   undef $this->{_refreshMode};
 
@@ -925,7 +986,8 @@ sub refreshUsersCache {
     my $mesg = $this->search(%args);
     unless ($mesg) {
       writeWarning("error refreshing the user cache: " . $this->getError());
-      $gotError = 1 unless $this->getCode() == LDAP_SIZELIMIT_EXCEEDED;    # continue on sizelimit exceeded
+      my $code = $this->getCode();
+      $gotError = 1 if !defined($code) || $code != LDAP_SIZELIMIT_EXCEEDED;    # continue on sizelimit exceeded
       last;
     }
 
@@ -977,7 +1039,7 @@ sub refreshUsersCache {
 
 ---++ resolveWikiNameClashes($data, %wikiNames, %loginNames) -> $integer
 
-if there have been name clashes during cacheIserFromEntry() those entry records
+if there have been name clashes those entry records
 have not yet been added to the cache. They are kept until all clashes have been
 found and a deterministic renaming scheme can be applied. Clashed WikiNames will be
 enumerated - !WikiName1, !WikiName2, !WikiName3 etc - and finally added to the database.
@@ -1001,25 +1063,24 @@ sub resolveWikiNameClashes {
 
     my $wikiName = $item->{wikiName};
     my $loginName = $item->{loginName};
-    my $dn = $item->{dn};
-    my $prevWikiName = ($refreshMode < 2) ? $this->getWikiNameOfDn($dn) : '';
+    my $prevWikiName = ($refreshMode < 2) ? $this->getWikiNameOfLogin($loginName) : '';
     my $newWikiName;
-    my $prevDN;
 
     if ($prevWikiName) {
-      writeDebug("found prevWikiName=$prevWikiName for $dn");
+      writeDebug("found prevWikiName=$prevWikiName for $loginName");
       $newWikiName = $prevWikiName;
     } else {
 
       # search for a new wikiname
+      my $prevLogin;
       do {
         $suffixes{$wikiName}++;
         $newWikiName = $wikiName . $suffixes{$wikiName};
-        $prevDN = $this->getDnOfWikiName($newWikiName);
-      } until (!$prevDN || $prevDN eq $dn);
+        $prevLogin = $this->getLoginOfWikiName($newWikiName);
+      } until (!$prevLogin || $prevLogin eq $loginName);
     }
 
-    writeDebug("processing clash of loginName=$loginName on wikiName=$wikiName, dn=$item->{dn}, resolves to newWikiName=$newWikiName");
+    writeDebug("processing clash of loginName=$loginName on wikiName=$wikiName, resolves to newWikiName=$newWikiName");
 
     $this->cacheUserFromEntry($item->{entry}, $data, $wikiNames, $loginNames, $newWikiName);
     $nrRecords++;
@@ -1272,12 +1333,12 @@ sub cacheUserFromEntry {
         $wikiName = $alias;
       }
 
-      # 5. check if this dn maps to a wikiName already in use by another dn before
-      my $prevDN = $this->getDnOfWikiName($wikiName) || '';
-      if ($prevDN && $prevDN ne $dn) {
+      # 5. check if this wikiName maps to a login already in use by another wikiName before
+      my $prevLogin = $this->getLoginOfWikiName($wikiName) || '';
+      if ($prevLogin && $prevLogin ne $loginName) {
 
-        writeWarning("$dn clashes with wikiName $wikiName already in use by $prevDN ... renaming later");
-        $this->{_wikiNameClaches}{$dn} = {
+        writeWarning("$loginName clashes with $prevLogin on wikiName $wikiName at $dn ... renaming later");
+        $this->{_wikiNameClaches}{$loginName} = {
           entry => $entry,
           dn => $dn,
           wikiName => $wikiName,
@@ -1287,11 +1348,11 @@ sub cacheUserFromEntry {
       }
 
       # 6. check for name clashes within this transaction
-      my $clashDN = $this->getDnOfWikiName($wikiName, $data);
-      if (defined $clashDN) {
-        if ($dn ne $clashDN) {
-          writeWarning("$dn clashes with $clashDN on wikiName $wikiName ... renaming later");
-          $this->{_wikiNameClaches}{$dn} = {
+      my $clashLogin = $this->getDnOfWikiName($wikiName, $data);
+      if (defined $clashLogin) {
+        if ($loginName ne $clashLogin) {
+          writeWarning("$loginName clashes with $clashLogin on wikiName $wikiName at $dn ... renaming later");
+          $this->{_wikiNameClaches}{$loginName} = {
             entry => $entry,
             dn => $dn,
             wikiName => $wikiName,
@@ -1299,26 +1360,15 @@ sub cacheUserFromEntry {
           };
         } else {
           # never reach: same dn found twice in same transaction
-          writeWarning("$dn found twice in ldap search... ignoring second one");
+          writeWarning("$loginName found twice in ldap search at $dn ... ignoring second one");
         }
         return 0;
       }
     }
   }
 
-  if (defined($loginNames->{$loginName})) {
-    my $clashDN = $loginNames->{$loginName};
-    if ($clashDN ne $dn) {
-      if ($clashDN eq '1') {
-        $clashDN = $data->{"U2DN::$loginName"} || '???';
-      }
-      writeWarning("$dn clashes with $clashDN on loginName $loginName ... please configure a unique loginName attribute");
-      return 0;
-    }
-  }
-
-  $wikiNames->{$wikiName} = $dn;
-  $loginNames->{$loginName} = $dn;
+  $wikiNames->{$wikiName} = 1;
+  $loginNames->{$loginName} = 1;
 
   # get email addrs
   my $emails;
@@ -2095,6 +2145,13 @@ sub checkCacheForLoginName {
 
   my $entry = $this->getAccount($loginName);
 
+  # Release read lock and re-tie with write lock to get exclusive access
+  # while we're altering the cache
+  $this->untieCache();
+  $this->tieCache('write');
+
+  my $result = 0;
+
   unless ($entry) {
     writeWarning("oops, no result looking for user $loginName in LDAP");
     $this->addIgnoredUser($loginName, $data);
@@ -2108,10 +2165,14 @@ sub checkCacheForLoginName {
     $data->{WIKINAMES} = join(',', keys %wikiNames);
     $data->{LOGINNAMES} = join(',', keys %loginNames);
 
-    return 1;
+    $result = 1;
   }
 
-  return 0;
+  # Release write lock and re-tie with read lock 
+  $this->untieCache();
+  $this->tieCache('read');
+
+  return $result;
 }
 
 =pod
@@ -2163,6 +2224,11 @@ sub removeUserFromCache {
   my $loginName = $this->getLoginOfWikiName($wikiName);
   my $dn = $this->getDnOfLogin($loginName, $data);
 
+  # Release read lock and re-tie with write lock to get exclusive access
+  # while we're altering the cache
+  $this->untieCache();
+  $this->tieCache('write');
+
   delete $loginNames{$loginName};
   delete $wikiNames{$wikiName};
   delete $data->{"U2W::$loginName"};
@@ -2180,6 +2246,9 @@ sub removeUserFromCache {
   $data->{LOGINNAMES} = join(',', keys %loginNames);
   $data->{WIKINAMES} = join(',', keys %wikiNames);
 
+  # Release write lock and re-tie with read lock 
+  $this->untieCache();
+  $this->tieCache('read');
 }
 
 =begin text
@@ -2306,11 +2375,18 @@ sub checkCacheForGroupName {
   writeDebug("group $groupName is unknown, need to refresh part of the ldap cache");
 
   my $entry = $this->getGroup($groupName);
+
+  # Release read lock and re-tie with write lock to get exclusive access
+  # while we're altering the cache
+  $this->untieCache();
+  $this->tieCache('write');
+
+  my $result = 0;
   unless ($entry) {
 
     writeWarning("oops, no result looking for group $groupName in LDAP");
     $this->addIgnoredGroup($groupName, $data);
-    return 0;
+
   } else {
 
     # merge this group record
@@ -2385,8 +2461,14 @@ sub checkCacheForGroupName {
     undef $this->{_groups}{$groupName};
     undef $this->{_groups};
 
-    return 1;
+    $result = 1;
   }
+
+  # Release write lock and re-tie with read lock 
+  $this->untieCache();
+  $this->tieCache('read');
+
+  return $result;
 }
 
 =pod
@@ -2440,7 +2522,12 @@ sub fromLdapCharSet {
   my ($this, $string) = @_;
 
   my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
-  return Encode::decode($ldapCharSet, $string);
+  my $siteCharSet = $Foswiki::cfg{Site}{CharSet};
+
+  return $string if $ldapCharSet eq $siteCharSet;
+
+  $string = Encode::decode($ldapCharSet, $string);
+  return Encode::encode($siteCharSet, $string);
 }
 
 =begin text
@@ -2454,9 +2541,13 @@ encode strings coming from the site to be used talking to the ldap directory
 sub fromSiteCharSet {
   my ($this, $string) = @_;
 
+  my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
   my $siteCharSet = $Foswiki::cfg{Site}{CharSet};
 
-  return Encode::decode($siteCharSet, $string);
+  return $string if $ldapCharSet eq $siteCharSet;
+
+  $string = Encode::decode($siteCharSet, $string);
+  return Encode::encode($ldapCharSet, $string);
 }
 
 1;

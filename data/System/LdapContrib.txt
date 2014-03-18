@@ -1,4 +1,5 @@
-%META:TOPICINFO{author="ProjectContributor" date="1291110482" format="1.1" version="3"}%
+%META:TOPICINFO{author="ProjectContributor" comment="autosave" date="1356278775" format="1.1" version="4"}%
+
 ---+!! %TOPIC%
 %TOC%
 ---++ Introduction
@@ -501,11 +502,13 @@ This work was partly sponsored by
    * [[http://www.1and1.com][1&1]]
 
 |  Author: | Michael Daum |
-|  Copyright&nbsp;&copy;: | 2006-2012 Michael Daum http://michaeldaumconsulting.com |
+|  Copyright&nbsp;&copy;: | 2006-2014 Michael Daum http://michaeldaumconsulting.com |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  18 Nov 2014: | using proper locking when updating the ldap cache (Foswiki:Main/TerjeNessAndersen); \
+                  rewrite of name clash resolution to use login attributes, not DNs anymore |
 |  29 Nov 2012: | fixed decoding of ldap strings |
 |  21 Nov 2012: | fixed ldap login manager using old api; \
                   fixed recursive traversal of distributed ldap directories; \

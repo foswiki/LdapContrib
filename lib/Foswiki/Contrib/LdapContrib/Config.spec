@@ -18,6 +18,12 @@ $Foswiki::cfg{Ldap}{Host} = 'ldap.my.domain.com';
 # Port used when binding to the LDAP server
 $Foswiki::cfg{Ldap}{Port} = 389;
 
+# **BOOLEAN**
+# Switch on this flag to enable IPv6 support when connecting to the LDAP server. 
+# Note that IPv6+SSL is still considered experimental. When disabled a normal IPv4 connection is established.
+# To make use of this feature you require IO::Socket::INET6.
+$Foswiki::cfg{Ldap}{IPv6} = 0;
+
 # **NUMBER**
 # Ldap protocol version to use when querying the server; 
 # Possible values are: 2, 3

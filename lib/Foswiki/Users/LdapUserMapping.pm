@@ -1,6 +1,6 @@
-# Module of Foswiki - The Free and Open Source Wiki, http://foswiki.org/
+# Module of Foswiki - The Free and Open Source Wiki http://foswiki.org/
 #
-# Copyright (C) 2006-2012 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2006-2014 Michael Daum http://michaeldaumconsulting.com
 # Portions Copyright (C) 2006 Spanlink Communications
 #
 # This program is free software; you can redistribute it and/or
@@ -128,9 +128,8 @@ sub getLoginName {
 
   $login = lc($login) unless $this->{ldap}{caseSensitiveLogin};
 
-  return unless $this->{ldap}->getWikiNameOfLogin($login);
-  return unless ($cUID eq $this->login2cUID($login));
-
+  return $login if $this->{ldap}->getWikiNameOfLogin($login);
+  return $this->SUPER::getLoginName($cUID) if $this->{ldap}{secondaryPasswordManager};
   return $login;
 }
 
@@ -473,6 +472,7 @@ sub findUserByWikiName {
     push @users, $wikiName;
   } else {
     my $loginName = $this->{ldap}->getLoginOfWikiName($wikiName) || $wikiName;
+    return $this->SUPER::findUserByWikiName($wikiName) if !$loginName && $this->{ldap}->{secondaryPasswordManager};
     my $cUID = $this->login2cUID($loginName, 1);
     push @users, $cUID if $cUID;
   }
@@ -509,6 +509,10 @@ sub handlesUser {
   $cUID = $this->login2cUID($login) if !$cUID && $login;
   return 1 if defined $cUID && $this->userExists($cUID);
 
+  # don't ask topic user mapping for large wikis
+  return 0 unless $this->{ldap}{secondaryPasswordManager};
+
+  #print STDERR "asking SUPER\n";
   return $this->SUPER::handlesUser($cUID, $login, $wikiName);
 }
 
@@ -540,10 +544,14 @@ sub login2cUID {
 
   unless ($dontcheck) {
     my $wikiName = $this->{ldap}->getWikiNameOfLogin($name);
-    return undef unless $wikiName || $loginName;
+    return unless $wikiName || $loginName;
   }
 
-  $cUID = $this->SUPER::login2cUID($origName, $dontcheck) unless defined $cUID;
+  # don't ask topic user mapping for large wikis
+  if ($this->{ldap}{secondaryPasswordManager} && ! defined($cUID)) {
+    $cUID = $this->SUPER::login2cUID($origName, $dontcheck);
+  }
+
   return $cUID;
 }
 
