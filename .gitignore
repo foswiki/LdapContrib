@@ -1,0 +1,9 @@
+*.gz
+*.swp
+LdapContrib.md5
+LdapContrib.sha1
+LdapContrib.tgz
+LdapContrib.txt
+LdapContrib.zip
+LdapContrib_installer
+LdapContrib_installer.pl

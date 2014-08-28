@@ -18,6 +18,7 @@
 package Foswiki::Users::LdapUserMapping;
 
 use strict;
+use warnings;
 use Foswiki::Contrib::LdapContrib ();
 use Foswiki::ListIterator ();
 
@@ -120,11 +121,7 @@ sub getLoginName {
   # Remove the mapping id in case this is a subclass
   $login =~ s/$this->{mapping_id}// if $this->{mapping_id};
 
-  use bytes;
-  # Reverse the encoding used to generate cUIDs in login2cUID
-  # use bytes to ignore character encoding
-  $login =~ s/_([0-9a-f][0-9a-f])/chr(hex($1))/gei;
-  no bytes;
+  $login = _mapcUID2Login($login);
 
   $login = lc($login) unless $this->{ldap}{caseSensitiveLogin};
 
@@ -132,6 +129,19 @@ sub getLoginName {
   return $this->SUPER::getLoginName($cUID) if $this->{ldap}{secondaryPasswordManager};
   return $login;
 }
+
+# Reverse the encoding used to generate cUIDs in login2cUID
+# use bytes to ignore character encoding
+sub _mapcUID2Login {
+  my $login = shift;
+
+  use bytes;
+  $login =~ s/_([0-9a-f][0-9a-f])/chr(hex($1))/gei;
+  no bytes;
+
+  return $login;
+}
+
 
 =pod
 
@@ -146,8 +156,7 @@ sub getWikiName {
 
   #writeDebug("called LdapUserMapping::getWikiName($cUID)");
 
-  my $loginName = $this->getLoginName($cUID);
-  return undef unless $loginName;
+  my $loginName = _mapcUID2Login($cUID);
 
   return $loginName if $this->isGroup($loginName);
 
@@ -363,8 +372,12 @@ sub eachGroupMember {
               push @$result, $it->next;
             }
           } else {
-            my $cUID = $this->login2cUID($login);
-            push @$result, $cUID if $cUID;
+            if ($this->isGroup($login)) {
+              push @$result, $login;
+            } else {
+              my $cUID = $this->login2cUID($login);
+              push @$result, $cUID if $cUID;
+            }
           }
         }
       }
@@ -416,8 +429,7 @@ sub isGroup {
   return 0 unless $user;
   #writeDebug("called isGroup($user)");
 
-  # may be called using a user object or a wikiName of a user
-  my $wikiName = (ref $user) ? $user->wikiName : $user;
+  my $wikiName = _mapcUID2Login($user);
 
   # special treatment for build-in groups
   return 1 if $wikiName eq $Foswiki::cfg{SuperAdminGroup};
@@ -431,7 +443,6 @@ sub isGroup {
 
   # backoff if it does not know
   if (!defined($isGroup) && $this->{ldap}{nativeGroupsBackoff}) {
-    $isGroup = $this->SUPER::isGroup($user) if ref $user;
     $isGroup = ($wikiName =~ /Group$/);
   }
 
@@ -498,6 +509,12 @@ first, then login, then wikiName.
 sub handlesUser {
   my ($this, $cUID, $login, $wikiName) = @_;
 
+  return 0 if $login && $login =~ /^baseusermapping/i;
+  return 0 if $cUID && $cUID =~ /^baseusermapping/i;
+  return 0 if $wikiName && $wikiName =~ /^baseusermapping/i;
+  return 0 
+    if $this->{session}->{users}->{basemapping}->handlesUser($cUID, $login, $wikiName);
+
   if ($this->{ldap}{mapGroups}) {
     # ask LDAP
     return 1 if $login && $this->{ldap}->isGroup($login);
@@ -539,16 +556,11 @@ sub login2cUID {
   my $loginName = $this->{ldap}->getLoginOfWikiName($name);
   $name = $loginName if defined $loginName;    # called with a wikiname
 
-  $name = lc($name) unless $this->{ldap}{caseSensitiveLogin};
+  #$name = lc($name) unless $this->{ldap}{caseSensitiveLogin};
   my $cUID = $this->{mapping_id} . Foswiki::Users::mapLogin2cUID($name);
 
-  unless ($dontcheck) {
-    my $wikiName = $this->{ldap}->getWikiNameOfLogin($name);
-    return unless $wikiName || $loginName;
-  }
-
   # don't ask topic user mapping for large wikis
-  if ($this->{ldap}{secondaryPasswordManager} && ! defined($cUID)) {
+  if ($this->{ldap}{secondaryPasswordManager} && (! defined($cUID) || $cUID eq $origName)) {
     $cUID = $this->SUPER::login2cUID($origName, $dontcheck);
   }
 

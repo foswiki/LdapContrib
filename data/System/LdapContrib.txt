@@ -1,5 +1,4 @@
 %META:TOPICINFO{author="ProjectContributor" comment="autosave" date="1356278775" format="1.1" version="4"}%
-
 ---+!! %TOPIC%
 %TOC%
 ---++ Introduction
@@ -140,7 +139,6 @@ in the group objects, and may map the member object indirectly to the
 login name. In addition any "primary group" setting stored in the user objects
 is consulted as well.
 
-
 ---++ Normalization of login, wiki and group names
 <nop>LdapContrib reads three kinds of names from your LDAP server and reuses this information
 as needed. These are the login names - used to log in -,
@@ -158,6 +156,10 @@ setting the parameters
    * =WikiNameAliases=: a comma separated key=value list of <nop>WikiNames to be mapped
      to another <nop>WikiName (DEPCRETATED: use =RewriteWikiNames= instead).
    * =RewriteWikiNames=: a list of rewrite rules; see below
+   * =UserMappingTopic=: a topic that holds a pre-defined login-to-wikiname mapping; this
+     comes in handy when migrating from a <nop>TopicUserMapping to an LDAP setup where
+     names already in use should be preserved. Note that no rewrite or normalization is applied
+     if a login name is found in the database
 
 Given the setting
 
@@ -502,12 +504,13 @@ This work was partly sponsored by
    * [[http://www.1and1.com][1&1]]
 
 |  Author: | Michael Daum |
-|  Copyright&nbsp;&copy;: | 2006-2014 Michael Daum http://michaeldaumconsulting.com |
+|  Copyright: | &copy; 2006-2014 Michael Daum http://michaeldaumconsulting.com |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
-|  18 Nov 2014: | using proper locking when updating the ldap cache (Foswiki:Main/TerjeNessAndersen); \
+|  23 May 2014: | implemented feature to provide a login-to-wikiname mapping in a topic |
+|  18 Mar 2014: | using proper locking when updating the ldap cache (Foswiki:Main/TerjeNessAndersen); \
                   rewrite of name clash resolution to use login attributes, not DNs anymore |
 |  29 Nov 2012: | fixed decoding of ldap strings |
 |  21 Nov 2012: | fixed ldap login manager using old api; \

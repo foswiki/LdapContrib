@@ -178,6 +178,13 @@ $Foswiki::cfg{Ldap}{AllowChangePassword} = 0;
 # registered to the wiki natively. Note, that <b>this must not be Foswiki::Users::LdapPasswdUser again!</b>
 $Foswiki::cfg{Ldap}{SecondaryPasswordManager} = 'none';
 
+# **STRING**
+# This parameter allows to hard-code a LoginName-to-WikiName mapping in a wiki topic. This 
+# feature may be used to migrate from a TopicUserMapping to LdapUserMapping by preserving any already existing
+# mapping stored in Main.WikiUsers. Leave it empty to disable this feature and build WikiNames by reading
+# LDAP attributes as normal. 
+$Foswiki::cfg{Ldap}{UserMappingTopic} = '';
+
 # ---+++ Group settings
 # The settings below configures the mapping and processing of LoginNames and WikiNames as
 # well as the use of LDAP groups. 
