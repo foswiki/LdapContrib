@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '6.10';
-our $RELEASE = '6.10';
+our $VERSION = '6.11';
+our $RELEASE = '6.11';
 our %sharedLdapContrib;
 
 =pod
@@ -374,7 +374,7 @@ sub connect {
     $args{"clientkey"} = $this->{tlsClientKey} if $this->{tlsClientKey};
     $args{"sslversion"} = $this->{tlsSSLVersion} if $this->{tlsSSLVersion};
     my $msg = $this->{ldap}->start_tls(%args);
-    writeWarning($msg->{errorMessage}) if exists $msg->{errorMessage};
+    writeWarning($msg->{errorMessage}) if $msg->{errorMessage};
   }
 
   $passwd = $this->fromSiteCharSet($passwd) if $passwd;
@@ -781,7 +781,7 @@ sub tieCache {
   unless (-e $this->{cacheFile}) {
     $locking->{'mode'} = 'write';
     my %db_hash;
-    my $x = tie(%db_hash, 'DB_File::Lock', $this->{cacheFile}, O_CREAT, 0664, $DB_HASH, $locking);
+    my $x = tie(%db_hash, 'DB_File::Lock', $this->{cacheFile}, O_CREAT|O_RDWR, 0664, $DB_HASH, $locking);
     undef($x);
     untie(%db_hash);
     $locking->{'mode'} = $mode;
