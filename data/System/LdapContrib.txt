@@ -1,4 +1,4 @@
-%META:TOPICINFO{author="ProjectContributor" comment="" date="1416819237" format="1.1" version="1"}%
+%META:TOPICINFO{author="ProjectContributor" comment="" date="1418736507" format="1.1" version="1"}%
 ---+!! %TOPIC%
 %TOC%
 ---++ Introduction
@@ -509,6 +509,7 @@ This work was partly sponsored by
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  16 Dec 2014: | fixed clash resolution (still was depending on DNs in some cases) |
 |  24 Nov 2014: | fixed creation of cache.db on <nop>FreeBSD |
 |  23 May 2014: | implemented feature to provide a login-to-wikiname mapping in a topic |
 |  18 Mar 2014: | using proper locking when updating the ldap cache (Foswiki:Main/TerjeNessAndersen); \

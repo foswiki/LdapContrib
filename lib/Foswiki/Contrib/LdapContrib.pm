@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '6.11';
-our $RELEASE = '6.11';
+our $VERSION = '6.20';
+our $RELEASE = '6.20';
 our %sharedLdapContrib;
 
 =pod
@@ -1332,16 +1332,16 @@ sub cacheUserFromEntry {
   }
 
   if (defined $wikiName) {
-    #writeDebug("found explicit wikiName '$wikiName' for $dn");
+    #writeDebug("found explicit wikiName '$wikiName' for $loginName");
   } else {
 
     # 0. get previously used wikiName
     my $refreshMode = $this->{_refreshMode} || 0;
-    my $prevWikiName = ($refreshMode < 2) ? $this->getWikiNameOfDn($dn) : '';
+    my $prevWikiName = ($refreshMode < 2) ? $this->getWikiNameOfLogin($loginName) : '';
 
     # keep a wikiName once it has been computed
     if ($prevWikiName) {
-      writeDebug("found prevWikiName=$prevWikiName for $dn");
+      writeDebug("found prevWikiName=$prevWikiName for $loginName");
       $wikiName = $prevWikiName;
     } else {
 
@@ -1417,7 +1417,7 @@ sub cacheUserFromEntry {
       }
 
       # 6. check for name clashes within this transaction
-      my $clashLogin = $this->getDnOfWikiName($wikiName, $data);
+      my $clashLogin = $this->getLoginOfWikiName($wikiName, $data);
       if (defined $clashLogin) {
         if ($loginName ne $clashLogin) {
           writeWarning("$loginName clashes with $clashLogin on wikiName $wikiName at $dn ... renaming later");
