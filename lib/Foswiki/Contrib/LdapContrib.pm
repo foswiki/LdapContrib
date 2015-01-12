@@ -1,6 +1,6 @@
 # Module of Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# Copyright (C) 2006-2014 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2006-2015 Michael Daum http://michaeldaumconsulting.com
 # Portions Copyright (C) 2006 Spanlink Communications
 #
 # This program is free software; you can redistribute it and/or
@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '6.20';
-our $RELEASE = '6.20';
+our $VERSION = '6.21';
+our $RELEASE = '6.21';
 our %sharedLdapContrib;
 
 =pod
@@ -2230,6 +2230,7 @@ sub checkCacheForLoginName {
     my %wikiNames = map { $_ => 1 } @{$this->getAllWikiNames($data)};
     my %loginNames = map { $_ => 1 } @{$this->getAllLoginNames($data)};
     $this->cacheUserFromEntry($entry, $data, \%wikiNames, \%loginNames);
+    $this->resolveWikiNameClashes($data, \%wikiNames, \%loginNames); # see Item12670
 
     $data->{WIKINAMES} = join(',', keys %wikiNames);
     $data->{LOGINNAMES} = join(',', keys %loginNames);

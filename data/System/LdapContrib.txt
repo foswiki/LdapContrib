@@ -1,4 +1,4 @@
-%META:TOPICINFO{author="ProjectContributor" comment="" date="1418736507" format="1.1" version="1"}%
+%META:TOPICINFO{author="ProjectContributor" comment="" date="1421060229" format="1.1" version="1"}%
 ---+!! %TOPIC%
 %TOC%
 ---++ Introduction
@@ -504,11 +504,12 @@ This work was partly sponsored by
    * [[http://www.1and1.com][1&1]]
 
 |  Author: | Michael Daum |
-|  Copyright: | &copy; 2006-2014 Michael Daum http://michaeldaumconsulting.com |
+|  Copyright: | &copy; 2006-2015 Michael Daum http://michaeldaumconsulting.com |
 |  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  12 Jan 2015: | resolve name clashes even when not pre-caching |
 |  16 Dec 2014: | fixed clash resolution (still was depending on DNs in some cases) |
 |  24 Nov 2014: | fixed creation of cache.db on <nop>FreeBSD |
 |  23 May 2014: | implemented feature to provide a login-to-wikiname mapping in a topic |
