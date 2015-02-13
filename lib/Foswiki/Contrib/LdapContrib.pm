@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '6.21';
-our $RELEASE = '6.21';
+our $VERSION = '7.00';
+our $RELEASE = '13 Feb 2015';
 our %sharedLdapContrib;
 
 =pod

@@ -43,6 +43,12 @@ $Foswiki::cfg{Ldap}{BindDN} = '';
 $Foswiki::cfg{Ldap}{BindPassword} = 'secret';
 
 # **STRING**
+# Path to keytab of this server. This is used for Kerberos single sign on. Note that you will have to 
+# Switch the {LoginManager} to <code>KerberosLogin</code> to make use of this feature.
+# Note also that this keytab must have a HTTP/mydomain.com principal name assigned to it.
+$Foswiki::cfg{Ldap}{KerberosKeyTab} = '/etc/krb5.keytab';
+
+# **STRING**
 # Set this to the charset encoding of data coming from the LDAP server.
 # Normally this should be 'utf-8', but might differ in some cases.
 # Data read from the server will then be converted from this encoding

@@ -16,7 +16,7 @@
 # As per the GPL, removal of this notice is prohibited.
 
 package Foswiki::Users::LdapPasswdUser;
-use Foswiki::Users::Password;
+use Foswiki::Users::Password ();
 our @ISA = qw( Foswiki::Users::Password );
 
 use strict;
@@ -28,7 +28,7 @@ use Foswiki::ListIterator ();
 
 =pod
 
----+ Foswiki::Users::LdapPassdUser
+---+ Foswiki::Users::LdapPasswdUser
 
 Password manager that uses Net::LDAP to manage users and passwords.
 
