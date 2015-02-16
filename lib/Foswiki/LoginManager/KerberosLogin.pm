@@ -20,6 +20,7 @@ use strict;
 use warnings;
 
 use Foswiki::Func();
+use Foswiki::LoginManager::Session (); # SMELL: required for _loadCreateCGISession
 use Foswiki::LoginManager::TemplateLogin();
 our @ISA = qw( Foswiki::LoginManager::TemplateLogin );
 
@@ -37,8 +38,6 @@ sub writeDebug {
   return unless $Foswiki::cfg{Ldap}{Debug};
   print STDERR "- KerberosLogin - $_[0]\n";
 }
-
-# see https://metacpan.org/source/AGROLMS/LWP-Authen-Negotiate-0.08/lib/LWP/Authen/Negotiate.pm
 
 sub new {
   my ($class, $session) = @_;
@@ -59,7 +58,7 @@ sub getSessionUser {
   my $request = $this->{session}{request};
   $this->{_cgisession} = $this->_loadCreateCGISession($request)
     unless $this->{_cgisession};
- 
+
   my $user = Foswiki::Sandbox::untaintUnchecked($this->{_cgisession}->param('AUTHUSER'));
 
   if ($user) {
@@ -96,7 +95,7 @@ sub login {
   } else {
     writeDebug("force into auth loop");
     $response->header(
-      -status => 401, 
+      -status => 401,
     );
   }
 }
@@ -151,20 +150,20 @@ sub getUser {
 TRY: {
     writeDebug("calling accept context");
     $status = GSSAPI::Context::accept(
-      $context, 
-      GSS_C_NO_CREDENTIAL, 
-      $inToken, 
-      GSS_C_NO_CHANNEL_BINDINGS, 
-      my $src_name, 
-      undef, 
-      my $gss_output_token, 
-      undef, 
-      undef, 
+      $context,
+      GSS_C_NO_CREDENTIAL,
+      $inToken,
+      GSS_C_NO_CHANNEL_BINDINGS,
+      my $src_name,
+      undef,
+      my $gss_output_token,
+      undef,
+      undef,
       undef
     );
 
     # bail out on error
-    $status or last; 
+    $status or last;
 
     writeDebug("getting client name");
     $status = $src_name->display($user);
@@ -193,7 +192,7 @@ sub getStatusMessage {
 
   $text .= join("\n", map {"MAJOR: $_"} $status->generic_message());
   $text .= "\n".join("\n", map {"MINOR: $_"} $status->specific_message());
-  
+
   return $text;
 }
 
