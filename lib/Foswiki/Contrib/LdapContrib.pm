@@ -1582,11 +1582,48 @@ sub cacheGroupFromEntry {
   }
 
   # fetch all members of this group
-  foreach my $member ($entry->get_value($this->{memberAttribute})) {
-    next unless $member;
-    $member =~ s/^\s+//o;
-    $member =~ s/\s+$//o;
-    $this->{_groups}{$groupName}{$member} = 1;    # delay til all groups have been fetched
+  my $memberVals = $entry->get_value($this->{memberAttribute}, alloptions => 1);
+  my @members = (defined($memberVals) && exists($memberVals->{''})) ? @{$memberVals->{''}} : ();
+
+  my $addMember = sub {
+    my $member;
+    while ($member = shift) {
+      next unless defined $member;
+      $member =~ s/^\s+//o;
+      $member =~ s/\s+$//o;
+      $this->{_groups}{$groupName}{$member} = 1;    # delay til all groups have been fetched
+    }
+  };
+  if (@members) {
+    $addMember->(@members);
+  } else {
+    # nothing? try AD's range=X-Y syntax
+    while (1) {
+      # "Parse" range
+      my ($rangeEnd, $members);
+      foreach my $k (keys %$memberVals) {
+        next if $k !~ /^;range=(?:\d+)-(\*|\d+)$/o;
+        ($rangeEnd, $members) = ($1, $memberVals->{$k});
+        last;
+      }
+      last if !defined $rangeEnd;
+      $addMember->(@$members);
+      last if $rangeEnd eq '*';
+      $rangeEnd++;
+      # Apparently there are more members, so iterate
+      # Apparently we need a dummy filter to make this work
+      my $newRes = $this->search(filter => 'objectClass=*', base => $dn, scope => 'base', attrs => ["member;range=$rangeEnd-*"]);
+      unless ($newRes) {
+        writeWarning("error fetching more members for $dn: ".$this->getError());
+        last;
+      }
+      my $newEntry = $newRes->pop_entry();
+      if (!defined $newEntry) {
+        writeWarning("no result when doing member;range=$rangeEnd-* search for $dn\n");
+        last;
+      }
+      $memberVals = $newEntry->get_value($this->{memberAttribute}, alloptions => 1);
+    }
   }
 
   # fetch all inner groups of this group
@@ -1594,6 +1631,7 @@ sub cacheGroupFromEntry {
     next unless $innerGroup;
     $innerGroup =~ s/^\s+//o;
     $innerGroup =~ s/\s+$//o;
+    # TODO: range=X-Y syntax not supported yet for innerGroups
     $this->{_groups}{$groupName}{$innerGroup} = 1;    # delay til all groups have been fetched
   }
 
