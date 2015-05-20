@@ -556,7 +556,7 @@ sub login2cUID {
   my $loginName = $this->{ldap}->getLoginOfWikiName($name);
   $name = $loginName if defined $loginName;    # called with a wikiname
 
-  #$name = lc($name) unless $this->{ldap}{caseSensitiveLogin};
+  $name = lc($name) unless $this->{ldap}{caseSensitiveLogin};
   my $cUID = $this->{mapping_id} . Foswiki::Users::mapLogin2cUID($name);
 
   # don't ask topic user mapping for large wikis
