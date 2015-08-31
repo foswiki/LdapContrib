@@ -251,6 +251,13 @@ $Foswiki::cfg{Ldap}{WikiGroupsBackoff} = 1;
 $Foswiki::cfg{Ldap}{NormalizeGroupNames} = 0;
 
 # **BOOLEAN**
+# Enable/disable generation of "private groups". Some posix systems generate a
+# group for each user account with the same name like the user account. These groups have a
+# single member, the user itself. As these groups don't really make sense to have in Foswik,
+# this flag is disabled by default.
+$Foswiki::cfg{Ldap}{IgnorePrivateGroups} = 1;
+
+# **BOOLEAN**
 # Enable use of LDAP groups. If you switch this off the group-related settings
 # have no effect. This flag is of use if you don't want to define groups in LDAP
 # but still want to map LoginNames to WikiNames on the base of LDAP data.

@@ -80,7 +80,7 @@ return the last error during LDAP operations
 sub error {
   my $this = shift;
   $this->{error} = $this->{ldap}->getError();
-  return return $this->{error};
+  return $this->{error};
 }
 
 =pod
@@ -210,7 +210,7 @@ we can change passwords, so return false
 sub readOnly {
   my $this = shift;
 
-  if ($Foswiki::cfg{Ldap}{AllowChangePassword}) {
+  if ($this->{ldap}->{allowChangePassword}) {
     $this->{session}->enterContext('passwords_modifyable');
   }
 }
@@ -373,7 +373,16 @@ Otherwise returns 1 on success, undef on failure.
 sub setPassword {
   my ($this, $login, $newUserPassword, $oldUserPassword) = @_;
 
-  my $isOk = $this->{ldap}->changePassword($login, $newUserPassword, $oldUserPassword);
+  my $isOk = 1;
+
+  unless ($this->{ldap}->{allowChangePassword}) {
+    $isOk = 0;
+    $this->{error} = "setting password not allowed by configuration";    
+  }
+
+  if ($isOk) {
+    $isOk = $this->{ldap}->changePassword($login, $newUserPassword, $oldUserPassword);
+  }
 
   if ($isOk) {
     $this->{error} = undef;
@@ -384,7 +393,7 @@ sub setPassword {
     if $this->{secondaryPasswordManager};
 
   $this->error();
-  return undef;
+  return 0;
 }
 
 =pod

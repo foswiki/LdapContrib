@@ -44,7 +44,7 @@ sub new {
 
   my $this = bless($class->SUPER::new($session), $class);
 
-  writeDebug("called new $class");
+  #writeDebug("called new $class");
 #  Foswiki::Func::registerTagHandler( 'LOGOUT', sub { return '' } );
 #  Foswiki::Func::registerTagHandler( 'LOGOUTURL', sub { return '' } );
 
@@ -72,6 +72,8 @@ sub getSessionUser {
 sub login {
   my ($this, $query, $session) = @_;
 
+  writeDebug("called login() - this=$this");
+
   my $response = $session->{response};
   my $request = $session->{request};
 
@@ -88,27 +90,29 @@ sub login {
 
   if ($found) {
     my $url = $session->getScriptUrl(0, 'view', $session->{webName}, $session->{topicName}, t => time());
-
     writeDebug("called login redirect to $url");
     $session->redirect($url);
-
   } else {
-    writeDebug("force into auth loop");
-    $response->header(
-      -status => 401,
-    );
+    writeDebug("delegating to template login");
+    return $this->SUPER::login($query, $session);
   }
 }
 
 sub getUser {
   my $this = shift;
 
-  writeDebug("called getUser()");
+  writeDebug("called getUser() - this=$this");
 
   unless ($Foswiki::cfg{Ldap}{KerberosKeyTab}) {
     writeDebug("keytab not defined");
     return $this->SUPER::getUser();
   }
+
+  unless (-r $Foswiki::cfg{Ldap}{KerberosKeyTab}) {
+    writeDebug("can't read keytab $Foswiki::cfg{Ldap}{KerberosKeyTab}");
+    return $this->SUPER::getUser();
+  }
+
 
   my $request = $this->{session}{request};
   my $response = $this->{session}{response};
@@ -118,7 +122,7 @@ sub getUser {
 
   # assert keytab to env, have to do this every time we come here
   $ENV{KRB5_KTNAME} = "FILE:$Foswiki::cfg{Ldap}{KerberosKeyTab}";
-  writeDebug("keytab=$ENV{KRB5_KTNAME}");
+  #writeDebug("keytab=$ENV{KRB5_KTNAME}");
 
 
   my $inToken;
@@ -136,9 +140,9 @@ sub getUser {
 
   # initial
   unless (defined $inToken) {
-    writeDebug("initial redirect using WWW_Authenticate");
+    writeDebug("initial redirect using WWW_Authenticate for ".$request->url(-full => 1, -path => 1, -query => 1));
     $response->header(
-#      -status => 401, # don't send a 401 if not required; a 401 is decided based on ACLs.
+      #-status => 401, # don't send a 401 if not required; a 401 is decided based on ACLs.
       -WWW_Authenticate => 'Negotiate'
     );
     return;
@@ -146,6 +150,7 @@ sub getUser {
 
   my $status;
   my $context;
+  my $error;
 
 TRY: {
     writeDebug("calling accept context");
@@ -163,13 +168,20 @@ TRY: {
     );
 
     # bail out on error
-    $status or last;
+    if (GSSAPI::Status::GSS_ERROR($status->major)) {
+      $error = "Unable to accept security context";
+      last;
+    } 
+
 
     writeDebug("getting client name");
     $status = $src_name->display($user);
 
     # bail out on error
-    $status or last;
+    if (GSSAPI::Status::GSS_ERROR($status->major)) {
+      $error = "Unable to display client name";
+      last;
+    }
 
     if ($user) {
       $user =~ s/@.*//;# strip off domain
@@ -178,9 +190,7 @@ TRY: {
     }
   }
 
-  if ($status->major != GSS_S_COMPLETE) {
-    writeDebug($this->getStatusMessage($status));
-  }
+  writeDebug("ERROR: $error".$this->getStatusMessage($status)) if $error;
 
   return $user;
 }
@@ -188,10 +198,8 @@ TRY: {
 sub getStatusMessage {
   my ($this, $status) = @_;
 
-  my $text = '';
-
-  $text .= join("\n", map {"MAJOR: $_"} $status->generic_message());
-  $text .= "\n".join("\n", map {"MINOR: $_"} $status->specific_message());
+  my $text = " - MAJOR: ". join(", ", $status->generic_message());
+  $text .= " - MINOR: ".join(", ", $status->specific_message());
 
   return $text;
 }

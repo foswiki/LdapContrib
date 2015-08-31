@@ -21,6 +21,7 @@ use warnings;
 use open qw(:std :utf8);
 
 use Net::LDAP qw(LDAP_REFERRAL);
+use Authen::SASL ();
 use URI::ldap;
 
 # usage: ldaptet 'ldap-query'
@@ -40,6 +41,9 @@ my $baseDN = 'dc=nodomain';
 my $bindUser = '';
 my $bindPassword = '';
 
+my $useSASL = 0;
+my $saslMechanism = 'GSSAPI';
+
 # maximum number of records returned
 my $sizeLimit = 10;
 
@@ -55,7 +59,10 @@ sub ldapSearch {
   my $ldap = Net::LDAP->new($server) || die "$@";
   my $mesg;
 
-  if ($bindUser) {
+  if ($useSASL) {
+    my $sasl = Authen::SASL->new(mechanism => $saslMechanism) || die "$@";
+    $mesg = $ldap->bind(sasl => $sasl);
+  } elsif ($bindUser) {
     $mesg = $ldap->bind($bindUser, password => $bindPassword);
   } else {
     $mesg = $ldap->bind();

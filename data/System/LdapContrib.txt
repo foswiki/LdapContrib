@@ -310,6 +310,10 @@ to <nop>WikiNames in case they clash. So be very cautious when doing that.
 
 
 ---++ Signle Sign On and <nop>LdapContrib
+<div class="foswikiHelp">
+%X% Note that the =KerberosLogin= manager depends on CPAN:GSSAPI and requires Foswiki >= 2.0.0
+</div>
+
 <nop>LdapContrib might be used as an out-of-the-box SSO solution. The only
 other prerequisite is that you need to integrate the HTTP server into the LDAP
 domain. A keytab for the HTTP service must be generated and placed in a secure
@@ -331,7 +335,6 @@ When no valid kerberos ticket is available on the client side will the authentic
 fall back to a template based login to enter credentials manually as if the =TemplateLogin= <nop>LoginManager
 has been used.
 
-%X% Note that the =KerberosLogin= manager depends on CPAN:GSSAPI.
 
 ---++ Simple Example 
 For the sake of this documentation we assume that users accounts in your
@@ -500,6 +503,8 @@ This work was partly sponsored by
 |  Release: | %$RELEASE% |
 |  Version: | %$VERSION% |
 |  Change History: | <!-- versions below in reverse order -->&nbsp; |
+|  08 May 2015: | added =IgnorePrivateGroups= flag |
+|  16 Feb 2015: | support Active Directory's range syntax for large groups (by Jan Krüger) |
 |  13 Feb 2015: | added support for kerberos single sign on using the <nop>KerberosLogin manager |
 |  12 Jan 2015: | resolve name clashes even when not pre-caching |
 |  16 Dec 2014: | fixed clash resolution (still was depending on DNs in some cases) |

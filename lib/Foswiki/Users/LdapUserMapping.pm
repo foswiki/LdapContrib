@@ -133,10 +133,23 @@ sub getLoginName {
 # Reverse the encoding used to generate cUIDs in login2cUID
 # use bytes to ignore character encoding
 sub _mapcUID2Login {
+  my $cUID = shift;
+
+  # SMELL: disabled this to allow underscores in login names
+  use bytes;
+  $cUID =~ s/_([0-9a-f][0-9a-f])/chr(hex($1))/gei;
+  no bytes;
+
+  return $cUID;
+}
+
+# local copy of Foswiki::Users::mapLogin2cUID
+sub _mapLogin2cUID {
   my $login = shift;
 
+  # SMELL: disabled this to allow underscores in login names
   use bytes;
-  $login =~ s/_([0-9a-f][0-9a-f])/chr(hex($1))/gei;
+  $login =~ s/([^a-zA-Z0-9])/'_'.sprintf('%02x', ord($1))/ge;
   no bytes;
 
   return $login;
@@ -557,7 +570,7 @@ sub login2cUID {
   $name = $loginName if defined $loginName;    # called with a wikiname
 
   #$name = lc($name) unless $this->{ldap}{caseSensitiveLogin};
-  my $cUID = $this->{mapping_id} . Foswiki::Users::mapLogin2cUID($name);
+  my $cUID = $this->{mapping_id} . _mapLogin2cUID($name);
 
   # don't ask topic user mapping for large wikis
   if ($this->{ldap}{secondaryPasswordManager} && (! defined($cUID) || $cUID eq $origName)) {

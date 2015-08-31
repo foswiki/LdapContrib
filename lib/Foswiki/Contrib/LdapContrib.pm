@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '7.01';
-our $RELEASE = '16 Feb 2015';
+our $VERSION = '7.20';
+our $RELEASE = '08 May 2015';
 our %sharedLdapContrib;
 
 =pod
@@ -184,6 +184,7 @@ sub new {
     normalizeLoginName => $Foswiki::cfg{Ldap}{NormalizeLoginNames},
     caseSensitiveLogin => $Foswiki::cfg{Ldap}{CaseSensitiveLogin} || 0,
     normalizeGroupName => $Foswiki::cfg{Ldap}{NormalizeGroupNames},
+    ignorePrivateGroups => $Foswiki::cfg{Ldap}{IgnorePrivateGroups},
 
     loginFilter => $Foswiki::cfg{Ldap}{LoginFilter} || 'objectClass=posixAccount',
 
@@ -377,7 +378,7 @@ sub connect {
     writeWarning($msg->{errorMessage}) if $msg->{errorMessage};
   }
 
-  $passwd = $this->fromSiteCharSet($passwd) if $passwd;
+  $passwd = $this->toSiteCharSet($passwd) if $passwd;
 
   # authenticated bind
   my $msg;
@@ -387,33 +388,31 @@ sub connect {
     #writeDebug("bind for $dn");
   }
 
-  # proxy user
-  elsif ($this->{bindDN} && $this->{bindPassword}) {
+  # sasl bind
+  elsif ($this->{useSASL}) {
+    my $sasl = Authen::SASL->new(
+      mechanism => $this->{saslMechanism},    #'DIGEST-MD5 PLAIN CRAM-MD5 EXTERNAL ANONYMOUS',
+    );
 
-    if ($this->{useSASL}) {
-      # sasl bind
-      my $sasl = Authen::SASL->new(
-        mechanism => $this->{saslMechanism},    #'DIGEST-MD5 PLAIN CRAM-MD5 EXTERNAL ANONYMOUS',
+    if ($this->{bindDN} && $this->{bindPassword}) {
+      $sasl->callback(
+        user => $this->{bindDN},
+        pass => $this->{bindPassword},
       );
-
-      if ($this->{bindDN} && $this->{bindPassword}) {
-        $sasl->callback(
-          user => $this->{bindDN},
-          pass => $this->{bindPassword},
-        );
-        #writeDebug("sasl bind to $this->{bindDN}");
-        $msg = $this->{ldap}->bind($this->{bindDN}, sasl => $sasl, version => $this->{version});
-
-      } else {
-        # writeDebug("sasl bind without user or pass");
-        $msg = $this->{ldap}->bind(sasl => $sasl, version => $this->{version});
-      }
+      #writeDebug("sasl bind to $this->{bindDN}");
+      $msg = $this->{ldap}->bind($this->{bindDN}, sasl => $sasl, version => $this->{version});
 
     } else {
-      # simple bind
-      #writeDebug("proxy bind");
-      $msg = $this->{ldap}->bind($this->{bindDN}, password => $this->{bindPassword});
+      # writeDebug("sasl bind without user or pass");
+      $msg = $this->{ldap}->bind(sasl => $sasl, version => $this->{version});
     }
+
+  } 
+
+  # simple bind
+  elsif ($this->{bindDN} && $this->{bindPassword}) {
+    #writeDebug("proxy bind");
+    $msg = $this->{ldap}->bind($this->{bindDN}, password => $this->{bindPassword});
   }
 
   # anonymous bind
@@ -604,11 +603,11 @@ sub search {
   my ($this, %args) = @_;
 
   $args{base} = $this->{base} unless $args{base};
-  $args{base} = $this->fromSiteCharSet($args{base});
+  $args{base} = $this->toSiteCharSet($args{base});
   $args{scope} = 'sub' unless $args{scope};
   $args{sizelimit} = 0 unless $args{sizelimit};
   $args{attrs} = ['*'] unless $args{attrs};
-  $args{filter} = $this->fromSiteCharSet($args{filter}) if $args{filter};
+  $args{filter} = $this->toSiteCharSet($args{filter}) if $args{filter};
 
   if (defined($args{callback}) && !defined($args{_origCallback})) {
 
@@ -1561,6 +1560,10 @@ sub cacheGroupFromEntry {
 
   my $loginName = $this->{caseSensitiveLogin} ? $groupName : lc($groupName);
   if (defined($data->{"U2W::$loginName"}) || defined($data->{"W2U::$groupName"})) {
+    if ($this->{ignorePrivateGroups}) {
+      writeDebug("ignoring private group $groupName as there is a login of that kind already");
+      return 0;
+    }
     my $groupSuffix = '';
     if ($this->{normalizeGroupName}) {
       $groupSuffix = 'Group';
@@ -1594,11 +1597,14 @@ sub cacheGroupFromEntry {
       $this->{_groups}{$groupName}{$member} = 1;    # delay til all groups have been fetched
     }
   };
+
   if (@members) {
     $addMember->(@members);
   } else {
+
     # nothing? try AD's range=X-Y syntax
     while (1) {
+
       # "Parse" range
       my ($rangeEnd, $members);
       foreach my $k (keys %$memberVals) {
@@ -1610,18 +1616,21 @@ sub cacheGroupFromEntry {
       $addMember->(@$members);
       last if $rangeEnd eq '*';
       $rangeEnd++;
+
       # Apparently there are more members, so iterate
       # Apparently we need a dummy filter to make this work
       my $newRes = $this->search(filter => 'objectClass=*', base => $dn, scope => 'base', attrs => ["member;range=$rangeEnd-*"]);
       unless ($newRes) {
-        writeWarning("error fetching more members for $dn: ".$this->getError());
+        writeWarning("error fetching more members for $dn: " . $this->getError());
         last;
       }
+
       my $newEntry = $newRes->pop_entry();
       if (!defined $newEntry) {
         writeWarning("no result when doing member;range=$rangeEnd-* search for $dn\n");
         last;
       }
+
       $memberVals = $newEntry->get_value($this->{memberAttribute}, alloptions => 1);
     }
   }
@@ -1932,6 +1941,7 @@ sub isGroup {
   #writeDebug("called isGroup($wikiName)");
   $data ||= $this->{data};
 
+  return undef if $wikiName =~ /^BaseUserMapping/;
   return undef if $this->{excludeMap}{$wikiName};
   return 1 if defined($data->{"GROUPS::$wikiName"});
   return 0 if defined($data->{"W2U::$wikiName"});
@@ -2630,31 +2640,23 @@ sub fromLdapCharSet {
   my ($this, $string) = @_;
 
   my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
-  my $siteCharSet = $Foswiki::cfg{Site}{CharSet};
 
-  return $string if $ldapCharSet eq $siteCharSet;
-
-  $string = Encode::decode($ldapCharSet, $string);
-  return Encode::encode($siteCharSet, $string);
+  return Encode::decode($ldapCharSet, $string);
 }
 
 =begin text
 
----++ fromSiteCharSet($string) -> $string
+---++ toLdapCharSet($string) -> $string
 
 encode strings coming from the site to be used talking to the ldap directory
 
 =cut
 
-sub fromSiteCharSet {
+sub toSiteCharSet {
   my ($this, $string) = @_;
 
   my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
-  my $siteCharSet = $Foswiki::cfg{Site}{CharSet};
 
-  return $string if $ldapCharSet eq $siteCharSet;
-
-  $string = Encode::decode($siteCharSet, $string);
   return Encode::encode($ldapCharSet, $string);
 }
 
