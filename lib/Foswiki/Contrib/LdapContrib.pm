@@ -24,6 +24,7 @@ use Net::LDAP qw(LDAP_REFERRAL);
 use URI::ldap;
 use Net::LDAP::Constant qw(LDAP_SUCCESS LDAP_SIZELIMIT_EXCEEDED LDAP_CONTROL_PAGED);
 use Net::LDAP::Extension::SetPassword;
+use Foswiki::Contrib::LdapContrib::DBFileLockConvert;
 use DB_File::Lock;
 use Encode ();
 
@@ -378,7 +379,8 @@ sub connect {
     writeWarning($msg->{errorMessage}) if $msg->{errorMessage};
   }
 
-  $passwd = $this->toSiteCharSet($passwd) if $passwd;
+  $dn = $this->toLdapCharSet($dn) if $dn;
+  $passwd = $this->toLdapCharSet($passwd) if $passwd;
 
   # authenticated bind
   my $msg;
@@ -395,12 +397,13 @@ sub connect {
     );
 
     if ($this->{bindDN} && $this->{bindPassword}) {
+      my $bindDN = $this->toLdapCharSet($this->{bindDN});
       $sasl->callback(
-        user => $this->{bindDN},
-        pass => $this->{bindPassword},
+        user => $bindDN,
+        pass => $this->toLdapCharSet($this->{bindPassword}),
       );
       #writeDebug("sasl bind to $this->{bindDN}");
-      $msg = $this->{ldap}->bind($this->{bindDN}, sasl => $sasl, version => $this->{version});
+      $msg = $this->{ldap}->bind($bindDN, sasl => $sasl, version => $this->{version});
 
     } else {
       # writeDebug("sasl bind without user or pass");
@@ -412,7 +415,9 @@ sub connect {
   # simple bind
   elsif ($this->{bindDN} && $this->{bindPassword}) {
     #writeDebug("proxy bind");
-    $msg = $this->{ldap}->bind($this->{bindDN}, password => $this->{bindPassword});
+    $msg = $this->{ldap}->bind($this->toLdapCharSet($this->{bindDN}),
+      password => $this->toLdapCharSet($this->{bindPassword})
+    );
   }
 
   # anonymous bind
@@ -603,11 +608,9 @@ sub search {
   my ($this, %args) = @_;
 
   $args{base} = $this->{base} unless $args{base};
-  $args{base} = $this->toSiteCharSet($args{base});
   $args{scope} = 'sub' unless $args{scope};
   $args{sizelimit} = 0 unless $args{sizelimit};
   $args{attrs} = ['*'] unless $args{attrs};
-  $args{filter} = $this->toSiteCharSet($args{filter}) if $args{filter};
 
   if (defined($args{callback}) && !defined($args{_origCallback})) {
 
@@ -644,6 +647,12 @@ sub search {
     }
   }
 
+  # Re-encode all the parameters
+  for my $k (keys %args) {
+    next if ref $args{$k};
+    $args{$k} = $this->toLdapCharSet($args{$k});
+  }
+
   my $msg = $this->{ldap}->search(%args);
   my $errorCode = $this->checkError($msg);
 
@@ -676,7 +685,7 @@ sub _followLink {
   #return if $this->{_followingLink};
   $this->{_followingLink} = 1;
 
-  my $uri = URI::ldap->new($link);
+  my $uri = URI::ldap->new($this->fromLdapCharSet($link));
 
   # SMELL: cache multiple ldap connections
 
@@ -780,7 +789,7 @@ sub tieCache {
   unless (-e $this->{cacheFile}) {
     $locking->{'mode'} = 'write';
     my %db_hash;
-    my $x = tie(%db_hash, 'DB_File::Lock', $this->{cacheFile}, O_CREAT|O_RDWR, 0664, $DB_HASH, $locking);
+    my $x = tie(%db_hash, $Foswiki::UNICODE ? 'Foswiki::Contrib::LdapContrib::DBFileLockConvert' : 'DB_File::Lock', $this->{cacheFile}, O_CREAT|O_RDWR, 0664, $DB_HASH, $locking);
     undef($x);
     untie(%db_hash);
     $locking->{'mode'} = $mode;
@@ -788,7 +797,7 @@ sub tieCache {
 
   my $tie_flag = ($mode eq 'read' ? O_RDONLY : O_RDWR);
 
-  $this->{cacheDB} = tie %{$this->{data}}, 'DB_File::Lock', $this->{cacheFile}, $tie_flag, 0664, $DB_HASH, $locking
+  $this->{cacheDB} = tie %{$this->{data}}, $Foswiki::UNICODE ? 'Foswiki::Contrib::LdapContrib::DBFileLockConvert' : 'DB_File::Lock', $this->{cacheFile}, $tie_flag, 0664, $DB_HASH, $locking
     or die "Error tieing cache file $this->{cacheFile}: $!";
 }
 
@@ -925,7 +934,7 @@ sub refreshCache {
   }
 
   my %tempData;
-  my $tempCache = tie %tempData, 'DB_File', $tempCacheFile, O_CREAT | O_RDWR, 0664, $DB_HASH
+  my $tempCache = tie %tempData, $Foswiki::UNICODE ? 'Foswiki::Contrib::LdapContrib::DBFileLockConvert' : 'DB_File::Lock', $tempCacheFile, O_CREAT | O_RDWR, 0664, $DB_HASH, 'write'
     or die "Cannot open file $tempCacheFile: $!";
 
   # precache the LDAP directory if enabled in configuration file
@@ -1306,7 +1315,7 @@ sub cacheUserFromEntry {
   $wikiNames ||= {};
   $loginNames ||= {};
 
-  my $dn = $entry->dn();
+  my $dn = $this->fromLdapCharSet($entry->dn());
 
   # 1. get it
   my $loginName = $entry->get_value($this->{loginAttribute});
@@ -1509,7 +1518,7 @@ sub cacheGroupFromEntry {
   $data ||= $this->{data};
   $groupNames ||= {};
 
-  my $dn = $entry->dn();
+  my $dn = $this->fromLdapCharSet($entry->dn());
   writeDebug("caching group for $dn");
 
   my $groupName = $entry->get_value($this->{groupAttribute});
@@ -1594,6 +1603,7 @@ sub cacheGroupFromEntry {
       next unless defined $member;
       $member =~ s/^\s+//o;
       $member =~ s/\s+$//o;
+      $member = $this->fromLdapCharSet($member);
       $this->{_groups}{$groupName}{$member} = 1;    # delay til all groups have been fetched
     }
   };
@@ -1640,6 +1650,7 @@ sub cacheGroupFromEntry {
     next unless $innerGroup;
     $innerGroup =~ s/^\s+//o;
     $innerGroup =~ s/\s+$//o;
+    $innerGroup = $this->fromLdapCharSet($innerGroup);
     # TODO: range=X-Y syntax not supported yet for innerGroups
     $this->{_groups}{$groupName}{$innerGroup} = 1;    # delay til all groups have been fetched
   }
@@ -1717,7 +1728,8 @@ use http://www.ltg.ed.ac.uk/~richard/utf-8.html to add more recodings
 sub transliterate {
   my $string = shift;
 
-  if ($Foswiki::cfg{Site}{CharSet} =~ /^utf-?8$/i) {
+  if ($Foswiki::UNICODE || $Foswiki::cfg{Site}{CharSet} =~ /^utf-?8$/i) {
+    use bytes;
     $string =~ s/\xc3\xa0/a/go;    # a grave
     $string =~ s/\xc3\xa1/a/go;    # a acute
     $string =~ s/\xc3\xa2/a/go;    # a circumflex
@@ -2209,8 +2221,8 @@ sub changePassword {
   return undef unless $this->connect($dn, $oldPassword);
 
   my $msg = $this->{ldap}->set_password(
-    oldpasswd => $oldPassword,
-    newpasswd => $newPassword
+    oldpasswd => $this->toLdapCharSet($oldPassword),
+    newpasswd => $this->toLdapCharSet($newPassword)
   );
 
   my $errorCode = $this->checkError($msg);
@@ -2641,7 +2653,12 @@ sub fromLdapCharSet {
 
   my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
 
-  return Encode::decode($ldapCharSet, $string);
+  if ($Foswiki::UNICODE) {
+    return Encode::decode($ldapCharSet, $string);
+  }
+
+  Encode::from_to($string, $ldapCharSet, $siteCharSet) unless $ldapCharSet eq $siteCharSet;
+  return $string;
 }
 
 =begin text
@@ -2652,12 +2669,18 @@ encode strings coming from the site to be used talking to the ldap directory
 
 =cut
 
-sub toSiteCharSet {
+sub toLdapCharSet {
   my ($this, $string) = @_;
 
   my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
+  my $siteCharSet = $Foswiki::cfg{Site}{CharSet};
 
-  return Encode::encode($ldapCharSet, $string);
+  if ($Foswiki::UNICODE) {
+    return Encode::encode($ldapCharSet, $string);
+  }
+
+  Encode::from_to($string, $siteCharSet, $ldapCharSet) unless $ldapCharSet eq $siteCharSet;
+  return $string;
 }
 
 1;
