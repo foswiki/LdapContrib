@@ -16,13 +16,25 @@
 
 package Foswiki::LoginManager::KerberosLogin;
 
+=begin TML
+
+---+ Foswiki::LoginManager::KerberosLogin
+
+This login manager may be used to implement single sign on based on Kerberos authentication.
+For this to work you will have to set up your server as well as your browser to exchange
+kerberos tickes part of the HTTP header. See [[%SYSTEMWEB%.LdapContrib#Signle_Sign_On_and_LdapContrib]] for more information.
+
+If no ticket could be exchanged will this login manager fall back to Foswiki::LoginManager::LdapTemplateLogin
+
+=cut
+
 use strict;
 use warnings;
 
 use Foswiki::Func();
-use Foswiki::LoginManager::Session (); # SMELL: required for _loadCreateCGISession
-use Foswiki::LoginManager::TemplateLogin();
-our @ISA = qw( Foswiki::LoginManager::TemplateLogin );
+use Foswiki::LoginManager::Session (); # required for _loadCreateCGISession
+use Foswiki::LoginManager::LdapTemplateLogin();
+our @ISA = qw( Foswiki::LoginManager::LdapTemplateLogin );
 
 use GSSAPI;
 use MIME::Base64;
@@ -39,6 +51,15 @@ sub writeDebug {
   print STDERR "- KerberosLogin - $_[0]\n";
 }
 
+=begin TML
+
+---++ ClassMethod new($session)
+
+Construct the <nop>KerberosLogin object
+
+=cut
+
+
 sub new {
   my ($class, $session) = @_;
 
@@ -50,11 +71,18 @@ sub new {
 
   return $this;
 }
+=begin TML
 
-# returns user as already found in session
+---++ ObjectMethod getSessionUser()
+
+returns user as already found in session
+
+=cut
+
 sub getSessionUser {
   my $this = shift;
 
+  writeDebug("called getSessionUser");
   my $request = $this->{session}{request};
   $this->{_cgisession} = $this->_loadCreateCGISession($request)
     unless $this->{_cgisession};
@@ -69,6 +97,17 @@ sub getSessionUser {
   return;
 }
 
+=begin TML
+
+---++ ObjectMethod login($request, $session)
+
+Checks for a neogitiation HTTP header and redirects to login if not.
+When found we will redirect to another view to perform the actual ticket exchange.
+A special url parameter =_krb_redirect= will be set to prevent multiple redirects
+happening by accident.
+
+=cut
+
 sub login {
   my ($this, $query, $session) = @_;
 
@@ -82,21 +121,37 @@ sub login {
   unless ($found) {
     foreach my $val ($request->header("Authorization")) {
       if ($val =~ /^Negotiate .+$/) {
+        writeDebug("no user found but got an Authorization token in http header");
         $found = 1;
         last;
       }
     }
   }
 
+  my $krbRedirect = $request->param("_krb_redirect");
+  if ($krbRedirect) {
+    writeDebug("already did a krb redirect ... not again");
+    $found = 0;
+  }
+
   if ($found) {
-    my $url = $session->getScriptUrl(0, 'view', $session->{webName}, $session->{topicName}, t => time());
-    writeDebug("called login redirect to $url");
+    my $url = $session->getScriptUrl(0, 'view', $session->{webName}, $session->{topicName}, t => time(), "_krb_redirect" => 1);
+    writeDebug("redirecting to view at $url");
     $session->redirect($url);
   } else {
     writeDebug("delegating to template login");
-    return $this->SUPER::login($query, $session);
+    $this->SUPER::login($query, $session);
   }
 }
+
+=begin TML
+
+---++ ObjectMethod getUser($request, $session)
+
+performs the actual kerberos communication to extract the remote user name from the ticket
+found in the HTTP header. 
+
+=cut
 
 sub getUser {
   my $this = shift;
@@ -190,12 +245,15 @@ TRY: {
     }
   }
 
-  writeDebug("ERROR: $error".$this->getStatusMessage($status)) if $error;
+  if ($error) {
+    writeDebug("ERROR: $error".$this->_getStatusMessage($status));
+    return $this->SUPER::getUser();
+  }
 
   return $user;
 }
 
-sub getStatusMessage {
+sub _getStatusMessage {
   my ($this, $status) = @_;
 
   my $text = " - MAJOR: ". join(", ", $status->generic_message());

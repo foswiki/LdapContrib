@@ -30,8 +30,10 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '7.20';
-our $RELEASE = '08 May 2015';
+our $VERSION = '7.30';
+our $RELEASE = '21 Sep 2015';
+our $SHORTDESCRIPTION = 'LDAP services for Foswiki':
+our $NO_PREFS_IN_TOPIC = 1;
 our %sharedLdapContrib;
 
 =pod
@@ -200,6 +202,7 @@ sub new {
     mapGroups => $Foswiki::cfg{Ldap}{MapGroups} || 0,
     rewriteGroups => $Foswiki::cfg{Ldap}{RewriteGroups} || {},
     rewriteWikiNames => $Foswiki::cfg{Ldap}{RewriteWikiNames} || {},
+    rewriteLoginNames=>$Foswiki::cfg{Ldap}{RewriteLoginNames} || {},
     mergeGroups => $Foswiki::cfg{Ldap}{MergeGroups} || 0,
 
     mailAttribute => $Foswiki::cfg{Ldap}{MailAttribute} || 'mail',
@@ -1319,6 +1322,7 @@ sub cacheUserFromEntry {
   $loginName = $this->fromLdapCharSet($loginName);
 
   # 2. normalize
+  $loginName = $this->rewriteName($loginName, $this->{rewriteLoginNames});
   $loginName = lc($loginName) unless $this->{caseSensitiveLogin};
   $loginName = $this->normalizeLoginName($loginName) if $this->{normalizeLoginName};
   return 0 if $this->{excludeMap}{$loginName};
@@ -1365,29 +1369,7 @@ sub cacheUserFromEntry {
       }
 
       # 2. rewrite
-      my $oldWikiName = $wikiName;
-      foreach my $pattern (keys %{$this->{rewriteWikiNames}}) {
-        my $subst = $this->{rewriteWikiNames}{$pattern};
-        if ($wikiName =~ /^(?:$pattern)$/) {
-          my $arg1 = $1;
-          my $arg2 = $2;
-          my $arg3 = $3;
-          my $arg4 = $4;
-          my $arg5 = $5;
-          $arg1 = '' unless defined $arg1;
-          $arg2 = '' unless defined $arg2;
-          $arg3 = '' unless defined $arg3;
-          $arg4 = '' unless defined $arg4;
-          $subst =~ s/\$1/$arg1/g;
-          $subst =~ s/\$2/$arg2/g;
-          $subst =~ s/\$3/$arg3/g;
-          $subst =~ s/\$4/$arg4/g;
-          $subst =~ s/\$5/$arg5/g;
-          $wikiName = $subst;
-          writeDebug("rewriting '$oldWikiName' to '$wikiName' using rule $pattern");
-          last;
-        }
-      }
+      $wikiName = $this->rewriteName($wikiName, $this->{rewriteWikiNames});
 
       # 3. normalize
       if ($this->{normalizeWikiName}) {
@@ -1526,32 +1508,8 @@ sub cacheGroupFromEntry {
   }
   return 0 if $this->{excludeMap}{$groupName};
 
-  # check for a rewrite rule
-  my $foundRewriteRule = 0;
-  my $oldGroupName = $groupName;
-  foreach my $pattern (keys %{$this->{rewriteGroups}}) {
-    my $subst = $this->{rewriteGroups}{$pattern};
-    if ($groupName =~ /^(?:$pattern)$/) {
-      my $arg1 = $1;
-      my $arg2 = $2;
-      my $arg3 = $3;
-      my $arg4 = $4;
-      my $arg5 = $5;
-      $arg1 = '' unless defined $arg1;
-      $arg2 = '' unless defined $arg2;
-      $arg3 = '' unless defined $arg3;
-      $arg4 = '' unless defined $arg4;
-      $subst =~ s/\$1/$arg1/g;
-      $subst =~ s/\$2/$arg2/g;
-      $subst =~ s/\$3/$arg3/g;
-      $subst =~ s/\$4/$arg4/g;
-      $subst =~ s/\$5/$arg5/g;
-      $groupName = $subst;
-      $foundRewriteRule = 1;
-      writeDebug("rewriting '$oldGroupName' to '$groupName' using rule $pattern");
-      last;
-    }
-  }
+  # rewrite groups
+  $groupName = $this->rewriteName($groupName, $this->{rewriteGroups});
 
   if (!$this->{mergeGroups} && defined($groupNames->{$groupName})) {
     writeWarning("$dn clashes with group $groupNames->{$groupName} on $groupName");
@@ -1701,6 +1659,46 @@ sub normalizeLoginName {
   $name =~ s/[^$Foswiki::cfg{LoginNameFilterIn}]//;
 
   return $name;
+}
+
+=pod
+
+---++ rewriteName($in, $rules) -> $out
+
+rewrites a name based on a set of rewrite rules
+
+=cut
+
+sub rewriteName {
+  my ($this, $in, $rules) = @_;
+
+  return $in unless $rules;
+
+  my $out = $in;
+
+  while (my ($pattern,$subst) = each %$rules) {
+    if ($out =~ /^(?:$pattern)$/) {
+      my $arg1 = $1;
+      my $arg2 = $2;
+      my $arg3 = $3;
+      my $arg4 = $4;
+      my $arg5 = $5;
+      $arg1 = '' unless defined $arg1;
+      $arg2 = '' unless defined $arg2;
+      $arg3 = '' unless defined $arg3;
+      $arg4 = '' unless defined $arg4;
+      $subst =~ s/\$1/$arg1/g;
+      $subst =~ s/\$2/$arg2/g;
+      $subst =~ s/\$3/$arg3/g;
+      $subst =~ s/\$4/$arg4/g;
+      $subst =~ s/\$5/$arg5/g;
+      $out = $subst;
+      writeDebug("rewriting '$in' to '$out' using rule $pattern");
+      last;
+    }
+  }
+
+  return $out;
 }
 
 =pod
@@ -2658,6 +2656,42 @@ sub toSiteCharSet {
   my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
 
   return Encode::encode($ldapCharSet, $string);
+}
+
+=begin TML
+
+---++ ObjectMethod loadSession()
+
+Load the session, sanitize the login name and make sure its user information are already
+cached.
+
+=cut
+
+sub loadSession {
+  my ($this, $authUser) = @_;
+
+  # process authUser login name
+  if (defined $authUser) {
+
+    my $origAuthUser = $authUser;
+
+    $authUser =~ s/^\s+//o;
+    $authUser =~ s/\s+$//o;
+    $authUser = $this->fromLdapCharSet($authUser);
+
+    $authUser = lc($authUser) unless $this->{caseSensitiveLogin};
+    $authUser = $this->normalizeLoginName($authUser) if $this->{normalizeLoginName};
+
+    #print STDERR "origAuthUser=$origAuthUser, authUser=$authUser\n";
+
+    if ($this->{excludeMap}{$authUser}) {
+      $authUser = $origAuthUser; 
+    } else {
+      $this->checkCacheForLoginName($authUser);
+    }
+  }
+
+  return $authUser;
 }
 
 1;

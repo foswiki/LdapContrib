@@ -1,8 +1,10 @@
 data/System/LdapContrib.txt 0644
 lib/Foswiki/Contrib/LdapContrib/Config.spec 0644
+lib/Foswiki/Contrib/LdapContrib/DEPENDENCIES 0644
 lib/Foswiki/Contrib/LdapContrib.pm 0644
-lib/Foswiki/LoginManager/LdapApacheLogin.pm 0644
 lib/Foswiki/LoginManager/KerberosLogin.pm 0644
+lib/Foswiki/LoginManager/LdapApacheLogin.pm 0644
+lib/Foswiki/LoginManager/LdapTemplateLogin.pm 0644
 lib/Foswiki/Users/LdapPasswdUser.pm 0644
 lib/Foswiki/Users/LdapUserMapping.pm 0644
 tools/ldaptest 0755

@@ -470,12 +470,10 @@ time to reflect the specific settings required to connect your LDAP server.
 
    * <a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::Contrib::LdapContrib">Foswiki::Contrib::LdapContrib</a>
    * <a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::LoginManager::LdapApacheLogin">Foswiki::LoginManager::LdapApacheLogin</a>
-   * <a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::LoginManager::LdapApacheLogin">Foswiki::LoginManager::KerberosLogin</a>
+   * <a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::LoginManager::LdapTemplateLogin">Foswiki::LoginManager::LdapTemplateLogin</a>
+   * <a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::LoginManager::KerberosLogin">Foswiki::LoginManager::KerberosLogin</a>
    * <a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::Users::LdapUserMapping">Foswiki::Users::LdapUserMapping</a>
    * <a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::Users::LdapPasswdUser">Foswiki::Users::LdapPasswdUser</a>
-
----++ Dependencies
-%$DEPENDENCIES%
 
 ---++ Installation Instructions
 %$INSTALL_INSTRUCTIONS%
@@ -483,10 +481,11 @@ time to reflect the specific settings required to connect your LDAP server.
    * Read the above documentation, i.e. the [[#Configuration][Configuration]] section.
    * Use <a href="%SCRIPTURLPATH{"configure"}%">configure</a> to set the LDAP settings.
 
----++ Contrib Info
-<!--
-   * Set SHORTDESCRIPTION = LDAP services for Foswiki
--->
+---++ Dependencies
+%$DEPENDENCIES%
+
+
+---++ Acknowledgement
 
 This work was partly sponsored by 
 
@@ -497,12 +496,13 @@ This work was partly sponsored by
    * [[http://www.testo.de][Testo]]
    * [[http://www.1and1.com][1&1]]
 
-|  Author: | Michael Daum |
-|  Copyright: | &copy; 2006-2015 Michael Daum http://michaeldaumconsulting.com |
-|  License: | GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]]) |
-|  Release: | %$RELEASE% |
-|  Version: | %$VERSION% |
-|  Change History: | <!-- versions below in reverse order -->&nbsp; |
+
+---++ Change History
+
+%TABLE{columnwidths="7em" tablewidth="100%"}%
+|  21 Sep 2015: | added <nop>LdapTemplateLogin and <nop>LdapApacheLogin managers; \
+                  added <nop>RewriteLoginNames config parameter; \
+                  prevent against infinite redirects when using kerberos login but no ticket may be exchanged |
 |  08 May 2015: | added =IgnorePrivateGroups= flag |
 |  16 Feb 2015: | support Active Directory's range syntax for large groups (by Jan Krüger) |
 |  13 Feb 2015: | added support for kerberos single sign on using the <nop>KerberosLogin manager |
@@ -625,5 +625,13 @@ This work was partly sponsored by
 |  19 July 2006: | public release |
 |  24 May 2006: | API adjustments, improved wikiname generation |
 |  28 Apr 2006: | Initial version |
-|  Home: | Foswiki:Extensions/%TOPIC% |
-|  Support: | Foswiki:Support/%TOPIC% |
+
+%META:FORM{name="PackageForm"}%
+%META:FIELD{name="Author" title="Author" value="Michael Daum"}%
+%META:FIELD{name="Copyright" title="Copyright" value="&copy; 2006-2015 Michael Daum http://michaeldaumconsulting.com"}%
+%META:FIELD{name="Home" value="http://foswiki.org/Extensions/LdapContrib"}%
+%META:FIELD{name="License" title="License" value="GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]])"}%
+%META:FIELD{name="Release" title="Release" value="%$RELEASE%"}%
+%META:FIELD{name="Repository" title="Repository" value="https://github.com/foswiki/LdapContrib"}%
+%META:FIELD{name="Support" value="http://foswiki.org/Support/LdapContrib"}%
+%META:FIELD{name="Version" title="Version" value="%$VERSION%"}%

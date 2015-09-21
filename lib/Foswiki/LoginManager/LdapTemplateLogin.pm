@@ -12,15 +12,15 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #
-package Foswiki::LoginManager::LdapApacheLogin;
+package Foswiki::LoginManager::LdapTemplateLogin;
 
 =begin TML
 
----+ Foswiki::LoginManager::LdapApacheLogin
+---+ Foswiki::LoginManager::LdapTemplateLogin
 
 This is a simple login manager to be used when authentication is done
 using apache's LDAP capabilities. In addition to the normal 
-<a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::LoginManager::ApacheLogin">Foswiki::LoginManager::ApacheLogin</a>
+<a href="%SCRIPTURLPATH{"view"}%/%SYSTEMWEB%/PerlDoc?module=Foswiki::LoginManager::TemplateLogin">Foswiki::LoginManager::TemplateLogin</a>
 manager, this one adds a check to make sure the user is already cached
 in <nop>LdapContrib, and that its name matches onto the configured naming conventions.
 
@@ -28,17 +28,17 @@ in <nop>LdapContrib, and that its name matches onto the configured naming conven
 
 use strict;
 use warnings;
-use Foswiki::LoginManager::ApacheLogin ();
+use Foswiki::LoginManager::TemplateLogin ();
 use Foswiki::Contrib::LdapContrib ();
 use Foswiki::Sandbox ();
 
-@Foswiki::LoginManager::LdapApacheLogin::ISA = qw( Foswiki::LoginManager::ApacheLogin );
+@Foswiki::LoginManager::LdapTemplateLogin::ISA = qw( Foswiki::LoginManager::TemplateLogin );
 
 =begin TML
 
 ---++ ClassMethod new($session)
 
-Construct the <nop>LdapApacheLogin object
+Construct the <nop>LdapTemplateLogin object
 
 =cut
 
