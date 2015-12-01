@@ -1676,7 +1676,16 @@ sub rewriteName {
 
   my $out = $in;
 
-  while (my ($pattern,$subst) = each %$rules) {
+  # for some reasons this loop only provided values 
+  # on every second call to rewriteName
+  # centos 7, perl 5.16.3
+  #
+  # might be re-entrant issue of each
+  # http://blogs.perl.org/users/rurban/2014/04/do-not-use-each.html
+  #
+  # while (my ($pattern,$subst) = each %$rules) {
+  for my $pattern (keys %$rules) {
+    my $subst = $rules{$pattern};
     if ($out =~ /^(?:$pattern)$/) {
       my $arg1 = $1;
       my $arg2 = $2;
