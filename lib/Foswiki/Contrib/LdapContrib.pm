@@ -1676,7 +1676,26 @@ sub rewriteName {
 
   my $out = $in;
 
-  while (my ($pattern,$subst) = each %$rules) {
+  # Original:
+  # while (my ($pattern,$subst) = each %$rules) {
+  #
+  # this produces a re-entrant bug. 
+  # http://blogs.perl.org/users/rurban/2014/04/do-not-use-each.html
+  #
+  # 1) something needs to be rewritten
+  # 2) start with the first entry in rules
+  # 3) it matches. rewrite it, return out (call to last)
+  # 4) something else needs to be rewritten
+  # 5) continue with the second entry in rules, as 
+  #    rules points to the same hash and each just
+  #    continues where it was. 
+  #    (re-entrant bug)
+  #
+  # use keys to fetch all keys and then iterate. 
+  # avoids re-entrant bug of each
+
+  for my $pattern (keys %$rules) {
+    my $subst = $rules->{$pattern};
     if ($out =~ /^(?:$pattern)$/) {
       my $arg1 = $1;
       my $arg2 = $2;
