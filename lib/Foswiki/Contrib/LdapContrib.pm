@@ -1695,7 +1695,7 @@ sub rewriteName {
   # avoids re-entrant bug of each
 
   for my $pattern (keys %$rules) {
-    my $subst = $rules{$pattern};
+    my $subst = $rules->{$pattern};
     if ($out =~ /^(?:$pattern)$/) {
       my $arg1 = $1;
       my $arg2 = $2;
