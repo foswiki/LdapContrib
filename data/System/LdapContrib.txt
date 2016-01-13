@@ -309,7 +309,7 @@ cache using the =refreshldap=force= url parameter (compared to =refreshldap=on= 
 to <nop>WikiNames in case they clash. So be very cautious when doing that.
 
 
----++ Signle Sign On and <nop>LdapContrib
+---++ Single Sign On and <nop>LdapContrib
 <div class="foswikiHelp">
 %X% Note that the =KerberosLogin= manager depends on CPAN:GSSAPI and requires Foswiki >= 2.0.0
 </div>
