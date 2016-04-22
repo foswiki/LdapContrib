@@ -33,6 +33,15 @@ $Foswiki::cfg{Ldap}{Version} = '3';
 # Base DN to use in searches
 $Foswiki::cfg{Ldap}{Base} = 'dc=my,dc=domain,dc=com';
 
+# **BOOLEAN**
+# Use this switch to prune LDAP referrals. Normally admins may use referrals to guide search paths
+# in a directory or among several servers to follow a certain URL. The normal behavior is to follow
+# these referrals and continue search there recursively. However under certain conditions these referrals may
+# result in a search to traverse a very large array of different paths that may or may not
+# be online and when not result in undesirable timeouts. In general best practice would
+# be to maintain the directory in a consistent state and remove stale referrals not to harm queries performance.
+$Foswiki::cfg{Ldap}{IgnoreReferrals} = 0;
+
 # **STRING**
 # The DN to use when binding to the LDAP server; if undefined anonymous binding
 # will be used. Example 'cn=proxyuser,dc=my,dc=domain,dc=com'
@@ -71,7 +80,7 @@ $Foswiki::cfg{Ldap}{SASLMechanism} = 'PLAIN CRAM-MD5 EXTERNAL ANONYMOUS';
 
 # **BOOLEAN**
 # Use Transort Layer Security (TLS) to encrypt the connection to the LDAP server.
-# You will need to specify the servers CA File using the TLSCAFile option
+# You will need to specify the servers CA File using the TLSCAFile or TLSCAPath option
 $Foswiki::cfg{Ldap}{UseTLS} = 0;
 
 # **STRING**
@@ -85,12 +94,12 @@ $Foswiki::cfg{Ldap}{TLSSSLVersion} = 'tlsv1';
 $Foswiki::cfg{Ldap}{TLSVerify} = 'require';
 
 # **STRING**
-# Pathname of the directory containing CA certificates
-$Foswiki::cfg{Ldap}{TLSCAPath} = '';
-
-# **STRING**
 # Filename containing the certificate of the CA which signed the server’s certificate.
 $Foswiki::cfg{Ldap}{TLSCAFile} = '';
+
+# **STRING**
+# Pathname of the directory containing CA certificates. 
+$Foswiki::cfg{Ldap}{TLSCAPath} = '';
 
 # **STRING**
 # Client side certificate file

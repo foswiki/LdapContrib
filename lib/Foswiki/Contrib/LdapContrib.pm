@@ -1,6 +1,6 @@
 # Module of Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# Copyright (C) 2006-2015 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2006-2016 Michael Daum http://michaeldaumconsulting.com
 # Portions Copyright (C) 2006 Spanlink Communications
 #
 # This program is free software; you can redistribute it and/or
@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '7.31';
-our $RELEASE = '21 Sep 2015';
+our $VERSION = '7.40';
+our $RELEASE = '22 Apr 2016';
 our $SHORTDESCRIPTION = 'LDAP services for Foswiki';
 our $NO_PREFS_IN_TOPIC = 1;
 our %sharedLdapContrib;
@@ -156,6 +156,7 @@ sub new {
     port => $Foswiki::cfg{Ldap}{Port} || 389,
     version => $Foswiki::cfg{Ldap}{Version} || 3,
     ipv6 => $Foswiki::cfg{Ldap}{IPv6} || 0,
+    ignoreReferrals => $Foswiki::cfg{Ldap}{IgnoreReferrals} || 0,
 
     userBase => $Foswiki::cfg{Ldap}{UserBase}
       || [$Foswiki::cfg{Ldap}{Base}]
@@ -371,9 +372,10 @@ sub connect {
     #writeDebug("using TLS");
     my %args = (
       verify => $this->{tlsVerify},
-      cafile => $this->{tlsCAFile},
-      capath => $this->{tlsCAPath},
     );
+
+    $args{"cafile"} = $this->{tlsCAFile} if $this->{tlsCAFile};
+    $args{"capath"} = $this->{tlsCAPath} if $this->{tlsCAPath} && !$this->{tlsCAFile};
     $args{"clientcert"} = $this->{tlsClientCert} if $this->{tlsClientCert};
     $args{"clientkey"} = $this->{tlsClientKey} if $this->{tlsClientKey};
     $args{"sslversion"} = $this->{tlsSSLVersion} if $this->{tlsSSLVersion};
@@ -657,7 +659,7 @@ sub search {
   }
 
   if ($errorCode == LDAP_REFERRAL) {
-    unless ($this->{_followingLink}) {
+    if (!$this->{ignoreReferrals} && !$this->{_followingLink}) {
       my @referrals = $msg->referrals;
       foreach my $link (@referrals) {
         writeDebug("following referral $link");
@@ -742,7 +744,7 @@ sub cacheBlob {
   if ($refresh || !-f $fileName) {
     writeDebug("caching blob for $attr to $fileName");
     my $value = $entry->get_value($attr);
-    return undef unless defined $value;
+    return unless $value;
     mkdir($dir, 0775) unless -e $dir;
 
     open(FILE, ">$fileName") || die "can't open $fileName";
@@ -1676,25 +1678,7 @@ sub rewriteName {
 
   my $out = $in;
 
-  # Original:
-  # while (my ($pattern,$subst) = each %$rules) {
-  #
-  # this produces a re-entrant bug. 
-  # http://blogs.perl.org/users/rurban/2014/04/do-not-use-each.html
-  #
-  # 1) something needs to be rewritten
-  # 2) start with the first entry in rules
-  # 3) it matches. rewrite it, return out (call to last)
-  # 4) something else needs to be rewritten
-  # 5) continue with the second entry in rules, as 
-  #    rules points to the same hash and each just
-  #    continues where it was. 
-  #    (re-entrant bug)
-  #
-  # use keys to fetch all keys and then iterate. 
-  # avoids re-entrant bug of each
-
-  for my $pattern (keys %$rules) {
+  foreach my $pattern (keys %$rules) {
     my $subst = $rules->{$pattern};
     if ($out =~ /^(?:$pattern)$/) {
       my $arg1 = $1;
@@ -2657,6 +2641,7 @@ sub fromLdapCharSet {
   my ($this, $string) = @_;
 
   my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
+  return $string if $Foswiki::cfg{Site}{CharSet} eq $ldapCharSet;
 
   return Encode::decode($ldapCharSet, $string);
 }

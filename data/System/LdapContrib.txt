@@ -500,6 +500,9 @@ This work was partly sponsored by
 ---++ Change History
 
 %TABLE{columnwidths="7em" tablewidth="100%"}%
+|  22 Apr 2016: | added <nop>IgnoreReferrals switch; \
+                  fixed occasional infinite loop when checking for an existing user; \
+                  be more robust against misconfiguring ca-file and/or ca-path |
 |  21 Sep 2015: | added <nop>LdapTemplateLogin and <nop>LdapApacheLogin managers; \
                   added <nop>RewriteLoginNames config parameter; \
                   prevent against infinite redirects when using kerberos login but no ticket may be exchanged |
@@ -629,9 +632,9 @@ This work was partly sponsored by
 %META:FORM{name="PackageForm"}%
 %META:FIELD{name="Author" title="Author" value="Michael Daum"}%
 %META:FIELD{name="Copyright" title="Copyright" value="&copy; 2006-2015 Michael Daum http://michaeldaumconsulting.com"}%
-%META:FIELD{name="Home" value="http://foswiki.org/Extensions/LdapContrib"}%
+%META:FIELD{name="Home" value="https://foswiki.org/Extensions/LdapContrib"}%
 %META:FIELD{name="License" title="License" value="GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]])"}%
 %META:FIELD{name="Release" title="Release" value="%$RELEASE%"}%
 %META:FIELD{name="Repository" title="Repository" value="https://github.com/foswiki/LdapContrib"}%
-%META:FIELD{name="Support" value="http://foswiki.org/Support/LdapContrib"}%
+%META:FIELD{name="Support" value="https://foswiki.org/Support/LdapContrib"}%
 %META:FIELD{name="Version" title="Version" value="%$VERSION%"}%

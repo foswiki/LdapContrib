@@ -248,8 +248,8 @@ sub userExists {
   return 1 if $wikiName;
 
   my $result = 0;
-  if ($this->{ldap}{nativeGroupsBackoff}) {
-    # see LdapPasswdUser
+  if ($this->{ldap}{nativeGroupsBackoff} && ! $this->{session}->inContext("_user_exists")) {
+    # prevent deep recursion
     $this->{session}->enterContext("_user_exists");
     $result = $this->SUPER::userExists($cUID);
     $this->{session}->leaveContext("_user_exists");
