@@ -1,4 +1,4 @@
-%META:TOPICINFO{author="ProjectContributor" comment="" date="1423841320" format="1.1" version="1"}%
+%META:TOPICINFO{author="ProjectContributor" comment="" date="1461332087" format="1.1" version="1"}%
 ---+!! %TOPIC%
 %TOC%
 ---++ Introduction
@@ -507,7 +507,7 @@ This work was partly sponsored by
                   added <nop>RewriteLoginNames config parameter; \
                   prevent against infinite redirects when using kerberos login but no ticket may be exchanged |
 |  08 May 2015: | added =IgnorePrivateGroups= flag |
-|  16 Feb 2015: | support Active Directory's range syntax for large groups (by Jan Krüger) |
+|  16 Feb 2015: | support Active Directory's range syntax for large groups (by Jan Krueger) |
 |  13 Feb 2015: | added support for kerberos single sign on using the <nop>KerberosLogin manager |
 |  12 Jan 2015: | resolve name clashes even when not pre-caching |
 |  16 Dec 2014: | fixed clash resolution (still was depending on DNs in some cases) |
@@ -631,7 +631,7 @@ This work was partly sponsored by
 
 %META:FORM{name="PackageForm"}%
 %META:FIELD{name="Author" title="Author" value="Michael Daum"}%
-%META:FIELD{name="Copyright" title="Copyright" value="&copy; 2006-2015 Michael Daum http://michaeldaumconsulting.com"}%
+%META:FIELD{name="Copyright" title="Copyright" value="&copy; 2006-2016 Michael Daum http://michaeldaumconsulting.com"}%
 %META:FIELD{name="Home" value="https://foswiki.org/Extensions/LdapContrib"}%
 %META:FIELD{name="License" title="License" value="GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]])"}%
 %META:FIELD{name="Release" title="Release" value="%$RELEASE%"}%
