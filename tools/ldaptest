@@ -24,31 +24,18 @@ use Net::LDAP qw(LDAP_REFERRAL);
 use Authen::SASL ();
 use URI::ldap;
 
-# usage: ldaptet 'ldap-query'
+our $server;
+our $baseDN = 'dc=nodomain';
+our $bindUser = '';
+our $bindPassword = '';
+our $useSASL = 0;
+our $saslMechanism = 'GSSAPI';
+our $sizeLimit = 10;
+our $deref = "always";
 
-## PLEASE MODIFIY #############################################
+require "ldaptest.conf";
 
-# server name or IP address
-my $server = 'localhost';
-
-# dn from where searches are performed recursively
-my $baseDN = 'dc=nodomain';
-
-# username and credentials used to connect to the LDAP server;
-# if unset an anonymous connect will be used
-# CAUTION: when typing in a password, this is plain text.
-# please make sure that this file is only readable for authorized personell
-my $bindUser = '';
-my $bindPassword = '';
-
-my $useSASL = 0;
-my $saslMechanism = 'GSSAPI';
-
-# maximum number of records returned
-my $sizeLimit = 10;
-
-# possible values: "never", "search", "find", "always"
-my $deref = "always";
+die "no server specified. please configure ldaptest.conf" unless $server;
 
 ###############################################################
 ldapSearch($server, $baseDN, $ARGV[0] || '(objectClass=*)');

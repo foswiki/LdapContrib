@@ -495,8 +495,9 @@ sub findUserByWikiName {
   if ($this->isGroup($wikiName)) {
     push @users, $wikiName;
   } else {
-    my $loginName = $this->{ldap}->getLoginOfWikiName($wikiName) || $wikiName;
+    my $loginName = $this->{ldap}->getLoginOfWikiName($wikiName);
     return $this->SUPER::findUserByWikiName($wikiName) if !$loginName && $this->{ldap}->{secondaryPasswordManager};
+    $loginName ||= $wikiName;
     my $cUID = $this->login2cUID($loginName, 1);
     push @users, $cUID if $cUID;
   }

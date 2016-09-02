@@ -1,4 +1,4 @@
-# ---+ Extensions
+# ---+ Security and Authentication
 # ---++ LDAP 
 # This is the configuration used by the <b>LdapContrib</b> and the
 # <b>LdapNgPlugin</b>. 
@@ -42,7 +42,7 @@ $Foswiki::cfg{Ldap}{Base} = 'dc=my,dc=domain,dc=com';
 # be to maintain the directory in a consistent state and remove stale referrals not to harm queries performance.
 $Foswiki::cfg{Ldap}{IgnoreReferrals} = 0;
 
-# **STRING**
+# **STRING CHECK="undefok emptyok" **
 # The DN to use when binding to the LDAP server; if undefined anonymous binding
 # will be used. Example 'cn=proxyuser,dc=my,dc=domain,dc=com'
 $Foswiki::cfg{Ldap}{BindDN} = '';
@@ -83,29 +83,29 @@ $Foswiki::cfg{Ldap}{SASLMechanism} = 'PLAIN CRAM-MD5 EXTERNAL ANONYMOUS';
 # You will need to specify the servers CA File using the TLSCAFile or TLSCAPath option
 $Foswiki::cfg{Ldap}{UseTLS} = 0;
 
-# **STRING**
+# **STRING DISPLAY_IF="{Ldap}{UseTLS}" CHECK="undefok emptyok" **
 # This defines the version of the SSL/TLS protocol to use. Possible values are:
 # 'sslv2', 'sslv3',  'sslv2/3' or 'tlsv1'
 $Foswiki::cfg{Ldap}{TLSSSLVersion} = 'tlsv1';
 
-# **STRING**
+# **STRING DISPLAY_IF="{Ldap}{UseTLS}" CHECK="undefok emptyok"**
 # Specify how to verify the servers certificate. Possible values are: 'require', 'optional'
 # or 'require'.
 $Foswiki::cfg{Ldap}{TLSVerify} = 'require';
 
-# **STRING**
+# **STRING DISPLAY_IF="{Ldap}{UseTLS}" CHECK="undefok emptyok"**
 # Filename containing the certificate of the CA which signed the server’s certificate.
 $Foswiki::cfg{Ldap}{TLSCAFile} = '';
 
-# **STRING**
+# **STRING DISPLAY_IF="{Ldap}{UseTLS}" CHECK="undefok emptyok"**
 # Pathname of the directory containing CA certificates. 
 $Foswiki::cfg{Ldap}{TLSCAPath} = '';
 
-# **STRING**
+# **STRING DISPLAY_IF="{Ldap}{UseTLS}" CHECK="undefok emptyok"**
 # Client side certificate file
 $Foswiki::cfg{Ldap}{TLSClientCert} = '';
 
-# **STRING**
+# **STRING DISPLAY_IF="{Ldap}{UseTLS}" CHECK="undefok emptyok"**
 # Client side private key file
 $Foswiki::cfg{Ldap}{TLSClientKey} = '';
 
@@ -127,7 +127,7 @@ $Foswiki::cfg{Ldap}{UserBase} = ['ou=people,dc=my,dc=domain,dc=com'];
 # Filter to be used to find login accounts. Compare to GroupFilter below
 $Foswiki::cfg{Ldap}{LoginFilter} = 'objectClass=posixAccount';
 
-# **SELECT sub,one**
+# **SELECT sub,one CHECK="undefok emptyok"**
 # The scope of the search for users starting at UserBase. While "sub" search recursively
 # a "one" will only search up to one level under the UserBase.
 $Foswiki::cfg{Ldap}{UserScope} = 'sub';
@@ -162,7 +162,7 @@ $Foswiki::cfg{Ldap}{NormalizeLoginNames} = 0;
 # Enable/disable case sensitive login names. If disabled case doesn't matter logging in.
 $Foswiki::cfg{Ldap}{CaseSensitiveLogin} = 0;
 
-# **STRING**
+# **STRING CHECK="undefok emptyok"**
 # Alias old !WikiNames to new account. This is a comma separated list of
 # "OldName=NewName" values.
 # Warning: this setting is deprecated - use <code>RewriteWikiNames</code> instead
@@ -225,7 +225,7 @@ $Foswiki::cfg{Ldap}{GroupBase} = ['ou=group,dc=my,dc=domain,dc=com'];
 # Filter to be used to find groups. Compare to LoginFilter.
 $Foswiki::cfg{Ldap}{GroupFilter} = 'objectClass=posixGroup';
 
-# **SELECT sub,one**
+# **SELECT sub,one CHECK="undefok emptyok"**
 # The scope of the search for groups starting at GroupBase. While "sub" search recursively
 # a "one" will only search up to one level under the GroupBase.
 $Foswiki::cfg{Ldap}{GroupScope} = 'sub';

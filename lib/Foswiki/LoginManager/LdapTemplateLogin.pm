@@ -66,7 +66,18 @@ sub loadSession {
   my $authUser = $this->SUPER::loadSession(@_);
   $authUser = Foswiki::Sandbox::untaintUnchecked($authUser);
 
-  return $this->{ldap}->loadSession($authUser);
+  if ($this->{ldap}->getWikiNameOfLogin($authUser)) {
+    $authUser =  $this->{ldap}->loadSession($authUser);
+  } else {
+    # try email
+    my $logins = $this->{ldap}->getLoginOfEmail($authUser);
+    if (defined $logins && scalar(@$logins)) {
+      $authUser = $logins->[0];
+      $authUser =  $this->{ldap}->loadSession(shift @$logins);
+    }
+  }
+
+  return $authUser;
 }
 
 1;

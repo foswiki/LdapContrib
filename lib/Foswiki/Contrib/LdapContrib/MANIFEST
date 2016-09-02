@@ -8,3 +8,4 @@ lib/Foswiki/LoginManager/LdapTemplateLogin.pm 0644
 lib/Foswiki/Users/LdapPasswdUser.pm 0644
 lib/Foswiki/Users/LdapUserMapping.pm 0644
 tools/ldaptest 0755
+tools/ldaptest.conf.example 0755

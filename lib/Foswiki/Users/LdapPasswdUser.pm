@@ -158,7 +158,8 @@ sub userExists {
 
   return 1
     if $this->{ldap}->getWikiNameOfLogin($name)
-      || $this->{ldap}->getLoginOfWikiName($name);
+      || $this->{ldap}->getLoginOfWikiName($name)
+      || $this->{ldap}->getLoginOfEmail($name);
 
   if ($this->{secondaryPasswordManager}) {
     #writeDebug("asking secondary password manager");
@@ -188,6 +189,18 @@ sub checkPassword {
 
   # get user record
   my $dn = $this->{ldap}->getDnOfLogin($login);
+
+  # try to login using an email
+  unless ($dn) {
+    my $email = $login;
+    my $logins = $this->{ldap}->getLoginOfEmail($email);
+    if (defined $logins) {
+      foreach my $l (@$logins) {
+        $dn = $this->{ldap}->getDnOfLogin($l);
+        last if $dn;
+      }
+    }
+  }
   writeDebug("dn not found") unless $dn;
 
   return $this->{ldap}->connect($dn, $passU)

@@ -500,6 +500,7 @@ This work was partly sponsored by
 ---++ Change History
 
 %TABLE{columnwidths="7em" tablewidth="100%"}%
+|  02 Sep 2016: | added ability to login using an email address |
 |  22 Apr 2016: | added <nop>IgnoreReferrals switch; \
                   fixed occasional infinite loop when checking for an existing user; \
                   be more robust against misconfiguring ca-file and/or ca-path |

@@ -1,0 +1,24 @@
+# configuration file for ldaptest 
+
+# server name or IP address
+$server = '';
+
+# dn from where searches are performed recursively
+$baseDN = '';
+
+# username and credentials used to connect to the LDAP server;
+# if unset an anonymous connect will be used
+# CAUTION: when typing in a password, this is plain text.
+# please make sure that this file is only readable for authorized personell
+$bindUser = ''; 
+$bindPassword = '';
+
+# security settings
+$useSASL = 0;
+$saslMechanism = 'GSSAPI';
+
+# maximum number of records returned
+$sizeLimit = 10;
+
+# possible values: "never", "search", "find", "always"
+$deref = "always";

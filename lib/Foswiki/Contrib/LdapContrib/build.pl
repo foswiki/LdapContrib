@@ -1,7 +1,4 @@
-#!/usr/bin/perl -w
-#
-# Build for NatSkin
-#
+#!/usr/bin/env perl
 BEGIN {
   foreach my $pc (split(/:/, $ENV{FOSWIKI_LIBS})) {
     unshift @INC, $pc;
