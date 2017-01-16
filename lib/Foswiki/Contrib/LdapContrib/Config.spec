@@ -158,6 +158,13 @@ $Foswiki::cfg{Ldap}{NormalizeWikiNames} = 1;
 # Enable/disable normalization of login names
 $Foswiki::cfg{Ldap}{NormalizeLoginNames} = 0;
 
+# **BOOLEAN EXPERT**
+# Enable/disable use of canonical user ids (cUIDs). WARNING: if you toggle this option
+# existing content might not be attributed to the correct user anymore. if disabled (default),
+# then cUIDs will be identical to the login name. if enabled, any non-alphanumeric character
+# will be translated to its hex value. 
+$Foswiki::cfg{Ldap}{UseCanonicalUserIDs} = 0;
+
 # **BOOLEAN**
 # Enable/disable case sensitive login names. If disabled case doesn't matter logging in.
 $Foswiki::cfg{Ldap}{CaseSensitiveLogin} = 0;

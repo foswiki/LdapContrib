@@ -1,6 +1,6 @@
 # Module of Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# Copyright (C) 2006-2016 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2006-2017 Michael Daum http://michaeldaumconsulting.com
 # Portions Copyright (C) 2006 Spanlink Communications
 #
 # This program is free software; you can redistribute it and/or
@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '7.50';
-our $RELEASE = '02 Sep 2016';
+our $VERSION = '7.60';
+our $RELEASE = '16 Jan 2017';
 our $SHORTDESCRIPTION = 'LDAP services for Foswiki';
 our $NO_PREFS_IN_TOPIC = 1;
 our %sharedLdapContrib;
@@ -185,6 +185,7 @@ sub new {
 
     normalizeWikiName => $Foswiki::cfg{Ldap}{NormalizeWikiNames},
     normalizeLoginName => $Foswiki::cfg{Ldap}{NormalizeLoginNames},
+    useCanonicalUserIDs => $Foswiki::cfg{Ldap}{UseCanonicalUserIDs} || 0,
     caseSensitiveLogin => $Foswiki::cfg{Ldap}{CaseSensitiveLogin} || 0,
     normalizeGroupName => $Foswiki::cfg{Ldap}{NormalizeGroupNames},
     ignorePrivateGroups => $Foswiki::cfg{Ldap}{IgnorePrivateGroups},
@@ -1425,6 +1426,9 @@ sub cacheUserFromEntry {
   # get email addrs
   my $emails;
   @{$emails} = $entry->get_value($this->{mailAttribute});
+
+  # lower case all emails
+  @{$emails} = map {lc $_} @$emails if defined $emails;
 
   # get primary group
   if ($this->{primaryGroupAttribute}) {
