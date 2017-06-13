@@ -253,7 +253,7 @@ sub userExists {
   if ($this->{ldap}{nativeGroupsBackoff} && ! $this->{session}->inContext("_user_exists")) {
     # prevent deep recursion
     $this->{session}->enterContext("_user_exists");
-    $result = $this->SUPER::userExists($cUID);
+    $result = $this->isGroup($loginName);
     $this->{session}->leaveContext("_user_exists");
   }
 
@@ -458,7 +458,7 @@ sub isGroup {
 
   # backoff if it does not know
   if (!defined($isGroup) && $this->{ldap}{nativeGroupsBackoff}) {
-    $isGroup = ($wikiName =~ /Group$/);
+    $isGroup = $this->SUPER::isGroup($user);
   }
 
   return $isGroup;
