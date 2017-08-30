@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '7.60';
-our $RELEASE = '16 Jan 2017';
+our $VERSION = '7.70';
+our $RELEASE = '30 Aug 2017';
 our $SHORTDESCRIPTION = 'LDAP services for Foswiki';
 our $NO_PREFS_IN_TOPIC = 1;
 our %sharedLdapContrib;
