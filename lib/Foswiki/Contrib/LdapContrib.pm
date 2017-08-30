@@ -63,8 +63,8 @@ my $count = $result->count();
 my @entries = $result->sorted('sn');
 my $entry = $result->entry(0);
 
-my $value = $entry->get_value('cn');
-my @emails = $entry->get_value('mail');
+my $commonName = $this->getValue($entry, 'cn');
+my $email = $this->getValue($entry, 'mail');
 </verbatim>
 
 ---++ Cache storage format
@@ -498,7 +498,7 @@ sub checkError {
   if ($code == LDAP_SUCCESS || $code == LDAP_REFERRAL) {
     $this->{error} = undef;
   } else {
-    $this->{error} = $code . ': ' . $msg->error();
+    $this->{error} = $msg->error_name() . "($code): " . $msg->error();
     #writeDebug($this->{error});
   }
 
@@ -744,7 +744,7 @@ sub cacheBlob {
 
   if ($refresh || !-f $fileName) {
     writeDebug("caching blob for $attr to $fileName");
-    my $value = $entry->get_value($attr);
+    my $value = $entry->get_value($attr); # not using getValue() as this is a blob
     return unless $value;
     mkdir($dir, 0775) unless -e $dir;
 
@@ -1315,14 +1315,12 @@ sub cacheUserFromEntry {
   my $dn = $entry->dn();
 
   # 1. get it
-  my $loginName = $entry->get_value($this->{loginAttribute});
-  $loginName =~ s/^\s+//o;
-  $loginName =~ s/\s+$//o;
+  my $loginName = $this->getValue($entry, $this->{loginAttribute});
+  $loginName =~ s/^\s+|\s+$//g;
   unless ($loginName) {
     writeDebug("no loginName for $dn ... skipping");
     return 0;
   }
-  $loginName = $this->fromLdapCharSet($loginName);
 
   # 2. normalize
   $loginName = $this->rewriteName($loginName, $this->{rewriteLoginNames});
@@ -1354,11 +1352,9 @@ sub cacheUserFromEntry {
       # 1. compute a new wikiName
       my @wikiName = ();
       foreach my $attr (@{$this->{wikiNameAttributes}}) {
-        my $value = $entry->get_value($attr);
+        my $value = $this->getValue($entry, $attr);
         next unless $value;
-        $value =~ s/^\s+//o;
-        $value =~ s/\s+$//o;
-        $value = $this->fromLdapCharSet($value);
+        $value =~ s/^\s+|\s+$//g;
         #writeDebug("$attr=$value");
         push @wikiName, $value;
       }
@@ -1425,14 +1421,14 @@ sub cacheUserFromEntry {
 
   # get email addrs
   my $emails;
-  @{$emails} = $entry->get_value($this->{mailAttribute});
+  @{$emails} = $this->getValue($entry, $this->{mailAttribute});
 
   # lower case all emails
   @{$emails} = map {lc $_} @$emails if defined $emails;
 
   # get primary group
   if ($this->{primaryGroupAttribute}) {
-    my $groupId = $entry->get_value($this->{primaryGroupAttribute});
+    my $groupId = $this->getValue($entry, $this->{primaryGroupAttribute});
     $this->{_primaryGroup}{$groupId}{$loginName} = 1 if $groupId;    # delayed
   }
 
@@ -1500,14 +1496,12 @@ sub cacheGroupFromEntry {
   my $dn = $entry->dn();
   writeDebug("caching group for $dn");
 
-  my $groupName = $entry->get_value($this->{groupAttribute});
+  my $groupName = $this->getValue($entry, $this->{groupAttribute});
   unless ($groupName) {
     writeDebug("no groupName for $dn ... skipping");
     return 0;
   }
-  $groupName =~ s/^\s+//o;
-  $groupName =~ s/\s+$//o;
-  $groupName = $this->fromLdapCharSet($groupName);
+  $groupName =~ s/^\s+|\s+$//g;
 
   if ($this->{normalizeGroupName}) {
     $groupName = $this->normalizeWikiName($groupName);
@@ -1543,13 +1537,13 @@ sub cacheGroupFromEntry {
   $data->{"U2DN::$groupName"} = $dn;
 
   # cache groupIds
-  my $groupId = $entry->get_value($this->{primaryGroupAttribute});
+  my $groupId = $this->getValue($entry, $this->{primaryGroupAttribute});
   if ($groupId) {
     $this->{_groupId}{$groupId} = $groupName;
   }
 
   # fetch all members of this group
-  my $memberVals = $entry->get_value($this->{memberAttribute}, alloptions => 1);
+  my $memberVals = $this->getValueMap($entry, $this->{memberAttribute});
   my @members = (defined($memberVals) && exists($memberVals->{''})) ? @{$memberVals->{''}} : ();
 
   my $addMember = sub {
@@ -1595,15 +1589,14 @@ sub cacheGroupFromEntry {
         last;
       }
 
-      $memberVals = $newEntry->get_value($this->{memberAttribute}, alloptions => 1);
+      $memberVals = $this->getValueMap($newEntry, $this->{memberAttribute});
     }
   }
 
   # fetch all inner groups of this group
-  foreach my $innerGroup ($entry->get_value($this->{innerGroupAttribute})) {
+  foreach my $innerGroup ($this->getValues($entry, $this->{innerGroupAttribute})) {
     next unless $innerGroup;
-    $innerGroup =~ s/^\s+//o;
-    $innerGroup =~ s/\s+$//o;
+    $innerGroup =~ s/^\s+|\s+$//g;
     # TODO: range=X-Y syntax not supported yet for innerGroups
     $this->{_groups}{$groupName}{$innerGroup} = 1;    # delay til all groups have been fetched
   }
@@ -2645,10 +2638,70 @@ sub fromLdapCharSet {
   my ($this, $string) = @_;
 
   my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
-  return $string if $Foswiki::cfg{Site}{CharSet} eq $ldapCharSet;
-
   return Encode::decode($ldapCharSet, $string);
 }
+
+=pod
+
+---++ getValue($entry, $key) -> $value
+
+returns a decoded string from an Net::LDAP::Entry object
+
+=cut
+
+sub getValue {
+  my ($this, $entry, $key) = @_;
+
+  my $val = $entry->get_value($key);
+  return unless defined $val;
+
+  return $this->fromLdapCharSet($val);
+}
+
+=pod
+
+---++ getValues($entry, $key) -> @values
+
+returns a decoded an array of strings from an Net::LDAP::Entry object
+
+=cut
+
+sub getValues {
+  my ($this, $entry, $key) = @_;
+
+  my @vals = $entry->get_value($key);
+  return unless @vals;
+
+  @vals = map {$this->fromLdapCharSet($_)} @vals;
+
+  return @vals;
+}
+
+=pod
+
+---++ getValueMap($entry, $key) -> \%result
+
+returns a decoded an array of strings from an Net::LDAP::Entry object
+
+=cut
+
+sub getValueMap {
+  my ($this, $entry, $key) = @_;
+
+  my $map = $entry->get_value($key, alloptions => 1);
+  return unless $map;
+
+  while (my ($key, $val) = each %$map) {
+    if (ref($val)) {
+      $map->{$key} = [map {$this->fromLdapCharSet($_)} @$val];
+    } else {
+      $map->{$key} = $this->fromLdapCharSet($val);
+    }
+  }
+
+  return $map;
+}
+
 
 =begin text
 
@@ -2662,7 +2715,6 @@ sub toSiteCharSet {
   my ($this, $string) = @_;
 
   my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
-
   return Encode::encode($ldapCharSet, $string);
 }
 
@@ -2682,10 +2734,8 @@ sub loadSession {
   if (defined $authUser) {
 
     my $origAuthUser = $authUser;
-
-    $authUser =~ s/^\s+//o;
-    $authUser =~ s/\s+$//o;
     $authUser = $this->fromLdapCharSet($authUser);
+    $authUser =~ s/^\s+|\s+$//g;
 
     $authUser = lc($authUser) unless $this->{caseSensitiveLogin};
     $authUser = $this->normalizeLoginName($authUser) if $this->{normalizeLoginName};

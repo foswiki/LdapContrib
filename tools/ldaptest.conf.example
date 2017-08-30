@@ -14,6 +14,7 @@ $bindUser = '';
 $bindPassword = '';
 
 # security settings
+$useTLS = 0;
 $useSASL = 0;
 $saslMechanism = 'GSSAPI';
 

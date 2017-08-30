@@ -197,7 +197,7 @@ sub getUser {
   unless (defined $inToken) {
     writeDebug("initial redirect using WWW_Authenticate for ".$request->url(-full => 1, -path => 1, -query => 1));
     $response->header(
-      #-status => 401, # don't send a 401 if not required; a 401 is decided based on ACLs.
+      -status => 401, 
       -WWW_Authenticate => 'Negotiate'
     );
     return;

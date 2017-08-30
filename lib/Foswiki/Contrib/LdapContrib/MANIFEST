@@ -1,3 +1,4 @@
+!noci
 data/System/LdapContrib.txt 0644
 lib/Foswiki/Contrib/LdapContrib/Config.spec 0644
 lib/Foswiki/Contrib/LdapContrib/DEPENDENCIES 0644

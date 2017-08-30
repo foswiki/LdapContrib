@@ -88,8 +88,8 @@ $Foswiki::cfg{Ldap}{UseTLS} = 0;
 # 'sslv2', 'sslv3',  'sslv2/3' or 'tlsv1'
 $Foswiki::cfg{Ldap}{TLSSSLVersion} = 'tlsv1';
 
-# **STRING DISPLAY_IF="{Ldap}{UseTLS}" CHECK="undefok emptyok"**
-# Specify how to verify the servers certificate. Possible values are: 'require', 'optional'
+# **SELECT required, optional, none DISPLAY_IF="{Ldap}{UseTLS}" CHECK="undefok emptyok"**
+# Specify how to verify the servers certificate.
 # or 'require'.
 $Foswiki::cfg{Ldap}{TLSVerify} = 'require';
 

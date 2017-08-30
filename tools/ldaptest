@@ -29,6 +29,7 @@ our $baseDN = 'dc=nodomain';
 our $bindUser = '';
 our $bindPassword = '';
 our $useSASL = 0;
+our $useTLS = 0;
 our $saslMechanism = 'GSSAPI';
 our $sizeLimit = 10;
 our $deref = "always";
@@ -45,6 +46,14 @@ sub ldapSearch {
   my ($server, $dn, $filter, $noFollow) = @_;
   my $ldap = Net::LDAP->new($server) || die "$@";
   my $mesg;
+
+  if ($useTLS) {
+    $mesg = $ldap->start_tls({
+       sslversion => 'tlsv1',
+       verify => 'none',
+    });
+    die $mesg->{errorMessage} if $mesg->{errorMessage};
+  }
 
   if ($useSASL) {
     my $sasl = Authen::SASL->new(mechanism => $saslMechanism) || die "$@";

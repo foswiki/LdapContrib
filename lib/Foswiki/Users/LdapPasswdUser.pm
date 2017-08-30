@@ -225,7 +225,10 @@ sub readOnly {
 
   if ($this->{ldap}->{allowChangePassword}) {
     $this->{session}->enterContext('passwords_modifyable');
+    return 0;
   }
+
+  return 1;
 }
 
 =pod

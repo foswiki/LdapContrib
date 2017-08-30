@@ -154,7 +154,7 @@ setting the parameters
       a couple of extra operations are performed to generate a proper <nop>WikiName, i.e.
       removing illegal characters.
    * =WikiNameAliases=: a comma separated key=value list of <nop>WikiNames to be mapped
-     to another <nop>WikiName (DEPCRETATED: use =RewriteWikiNames= instead).
+     to another <nop>WikiName (DEPRECATED: use =RewriteWikiNames= instead).
    * =RewriteWikiNames=: a list of rewrite rules; see below
    * =UserMappingTopic=: a topic that holds a pre-defined login-to-wikiname mapping; this
      comes in handy when migrating from a <nop>TopicUserMapping to an LDAP setup where
@@ -500,6 +500,7 @@ This work was partly sponsored by
 ---++ Change History
 
 %TABLE{columnwidths="7em" tablewidth="100%"}%
+|  30 Aug 2017: | fixed checking local groups; fixed recoding values coming from the LDAP directory |
 |  16 Jan 2017: | fixed logging in via email using an ldap-apache login manager |
 |  11 Jan 2017: | added config parameter to switch off mapping of login names to cUIDs |
 |  02 Sep 2016: | added ability to login using an email address |
