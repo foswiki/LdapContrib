@@ -351,15 +351,29 @@ sub connect {
   $host ||= $this->{host};
   $port ||= $this->{port};
 
-  $this->{ldap} = Net::LDAP->new(
-    $host,
-    port => $port,
-    version => $this->{version},
-    inet4 => ($this->{ipv6}?0:1),
-    inet6 => ($this->{ipv6}?1:0),
-    timeout => 5, # TODO: make configurable
-  );
-
+  if ( $host =~ /,/) {
+    # This server preference list relies on the behaviour of Net::LDAP
+    # ldap://, ldaps:// URIs or host:port pairs are valid
+    my @hosts = split (/,/, $host);
+    $this->{ldap} = Net::LDAP->new(
+      \@hosts,
+      port => $port,
+      version => $this->{version},
+      inet4 => ($this->{ipv6}?0:1),
+      inet6 => ($this->{ipv6}?1:0),
+      timeout => 5, # TODO: make configurable
+    );
+  } else {
+    $this->{ldap} = Net::LDAP->new(
+      $host,
+      port => $port,
+      version => $this->{version},
+      inet4 => ($this->{ipv6}?0:1),
+      inet6 => ($this->{ipv6}?1:0),
+      timeout => 5, # TODO: make configurable
+    );
+  }
+  
   unless ($this->{ldap}) {
     $this->{error} = "failed to connect to $this->{host}";
     $this->{error} .= ": $@" if $@;
