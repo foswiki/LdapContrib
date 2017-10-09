@@ -487,7 +487,7 @@ time to reflect the specific settings required to connect your LDAP server.
 
 ---++ Acknowledgement
 
-This work was partly sponsored by 
+This work is partly sponsored by 
 
    * [[http://www.spanlink.com][Spanlink Communications]] 
    * [[http://www.trivadis.com][Trivadis]] 
@@ -496,10 +496,10 @@ This work was partly sponsored by
    * [[http://www.testo.de][Testo]]
    * [[http://www.1and1.com][1&1]]
 
-
 ---++ Change History
 
 %TABLE{columnwidths="7em" tablewidth="100%"}%
+|  09 Sep 2017: | fixed encoding errors of uncicode DN paths |
 |  30 Aug 2017: | fixed checking local groups; fixed recoding values coming from the LDAP directory |
 |  16 Jan 2017: | fixed logging in via email using an ldap-apache login manager |
 |  11 Jan 2017: | added config parameter to switch off mapping of login names to cUIDs |

@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '7.70';
-our $RELEASE = '30 Aug 2017';
+our $VERSION = '7.71';
+our $RELEASE = '09 Sep 2017';
 our $SHORTDESCRIPTION = 'LDAP services for Foswiki';
 our $NO_PREFS_IN_TOPIC = 1;
 our %sharedLdapContrib;
@@ -384,12 +384,14 @@ sub connect {
     writeWarning($msg->{errorMessage}) if $msg->{errorMessage};
   }
 
-  $passwd = $this->toSiteCharSet($passwd) if $passwd;
+  $passwd = $this->toLdapCharSet($passwd) if $passwd;
 
   # authenticated bind
   my $msg;
   if (defined($dn)) {
     die "illegal call to connect()" unless defined($passwd);
+
+    $dn = $this->toLdapCharSet($dn);
     $msg = $this->{ldap}->bind($dn, password => $passwd);
     #writeDebug("bind for $dn");
   }
@@ -609,11 +611,11 @@ sub search {
   my ($this, %args) = @_;
 
   $args{base} = $this->{base} unless $args{base};
-  $args{base} = $this->toSiteCharSet($args{base});
+  $args{base} = $this->toLdapCharSet($args{base});
   $args{scope} = 'sub' unless $args{scope};
   $args{sizelimit} = 0 unless $args{sizelimit};
   $args{attrs} = ['*'] unless $args{attrs};
-  $args{filter} = $this->toSiteCharSet($args{filter}) if $args{filter};
+  $args{filter} = $this->toLdapCharSet($args{filter}) if $args{filter};
 
   if (defined($args{callback}) && !defined($args{_origCallback})) {
 
@@ -1312,7 +1314,7 @@ sub cacheUserFromEntry {
   $wikiNames ||= {};
   $loginNames ||= {};
 
-  my $dn = $entry->dn();
+  my $dn = $this->fromLdapCharSet($entry->dn());
 
   # 1. get it
   my $loginName = $this->getValue($entry, $this->{loginAttribute});
@@ -1442,8 +1444,7 @@ sub cacheUserFromEntry {
 
   if ($emails) {
     foreach my $email (@$emails) {
-      $email =~ s/^\s+//o;
-      $email =~ s/\s+$//o;
+      $email =~ s/^\s+|\s+$//g;
       my $prevMapping = $data->{"EMAIL2U::$email"};
       my %emails = ();
       if ($prevMapping) {
@@ -1493,7 +1494,7 @@ sub cacheGroupFromEntry {
   $data ||= $this->{data};
   $groupNames ||= {};
 
-  my $dn = $entry->dn();
+  my $dn = $this->fromLdapCharSet($entry->dn());
   writeDebug("caching group for $dn");
 
   my $groupName = $this->getValue($entry, $this->{groupAttribute});
@@ -1550,8 +1551,7 @@ sub cacheGroupFromEntry {
     my $member;
     while ($member = shift) {
       next unless defined $member;
-      $member =~ s/^\s+//o;
-      $member =~ s/\s+$//o;
+      $member =~ s/^\s+|\s+$//g;
       $this->{_groups}{$groupName}{$member} = 1;    # delay til all groups have been fetched
     }
   };
@@ -2367,7 +2367,7 @@ sub removeUserFromCache {
   $this->tieCache('read');
 }
 
-=begin text
+=begin tml
 
 ---++ renameWikiName($loginName, $oldWikiName, $newWikiName) 
 
@@ -2641,6 +2641,22 @@ sub fromLdapCharSet {
   return Encode::decode($ldapCharSet, $string);
 }
 
+=begin tml
+
+---++ toLdapCharSet($string) -> $string
+
+encode strings coming from the site to be used talking to the ldap directory
+
+=cut
+
+sub toLdapCharSet {
+  my ($this, $string) = @_;
+
+  my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
+  return Encode::encode($ldapCharSet, $string);
+}
+
+
 =pod
 
 ---++ getValue($entry, $key) -> $value
@@ -2700,22 +2716,6 @@ sub getValueMap {
   }
 
   return $map;
-}
-
-
-=begin text
-
----++ toLdapCharSet($string) -> $string
-
-encode strings coming from the site to be used talking to the ldap directory
-
-=cut
-
-sub toSiteCharSet {
-  my ($this, $string) = @_;
-
-  my $ldapCharSet = $Foswiki::cfg{Ldap}{CharSet} || 'utf-8';
-  return Encode::encode($ldapCharSet, $string);
 }
 
 =begin TML
