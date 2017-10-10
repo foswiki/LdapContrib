@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '7.71';
-our $RELEASE = '09 Sep 2017';
+our $VERSION = '7.80';
+our $RELEASE = '10 Oct 2017';
 our $SHORTDESCRIPTION = 'LDAP services for Foswiki';
 our $NO_PREFS_IN_TOPIC = 1;
 our %sharedLdapContrib;
@@ -63,6 +63,7 @@ my $count = $result->count();
 my @entries = $result->sorted('sn');
 my $entry = $result->entry(0);
 
+my $dn = $this->getDN($entry);
 my $commonName = $this->getValue($entry, 'cn');
 my $email = $this->getValue($entry, 'mail');
 </verbatim>
@@ -741,7 +742,7 @@ sub cacheBlob {
   $dir .= '/blobs';
   mkdir $dir unless -d $dir;
 
-  my $key = Digest::MD5::md5_hex($entry->dn() . $attr);
+  my $key = Digest::MD5::md5_hex($this->getDN($entry) . $attr);
   my $fileName = $dir . '/' . $key;
 
   if ($refresh || !-f $fileName) {
@@ -1314,7 +1315,7 @@ sub cacheUserFromEntry {
   $wikiNames ||= {};
   $loginNames ||= {};
 
-  my $dn = $this->fromLdapCharSet($entry->dn());
+  my $dn = $this->getDN($entry);
 
   # 1. get it
   my $loginName = $this->getValue($entry, $this->{loginAttribute});
@@ -1494,7 +1495,7 @@ sub cacheGroupFromEntry {
   $data ||= $this->{data};
   $groupNames ||= {};
 
-  my $dn = $this->fromLdapCharSet($entry->dn());
+  my $dn = $this->getDN($entry);
   writeDebug("caching group for $dn");
 
   my $groupName = $this->getValue($entry, $this->{groupAttribute});
@@ -1715,7 +1716,7 @@ use http://www.ltg.ed.ac.uk/~richard/utf-8.html to add more recodings
 sub transliterate {
   my $string = shift;
 
-  if ($Foswiki::cfg{Site}{CharSet} =~ /^utf-?8$/i) {
+  if (!$Foswiki::UNICODE && $Foswiki::cfg{Site}{CharSet} =~ /^utf-?8$/i) {
     $string =~ s/\xc3\xa0/a/go;    # a grave
     $string =~ s/\xc3\xa1/a/go;    # a acute
     $string =~ s/\xc3\xa2/a/go;    # a circumflex
@@ -2676,6 +2677,21 @@ sub getValue {
 
 =pod
 
+---++ getDN($entry, $key) -> $value
+
+returns the decoded distinguished name from an Net::LDAP::Entry object
+
+=cut
+
+sub getDN {
+  my ($this, $entry) = @_;
+
+  my $dn = $entry->dn();
+  return $this->fromLdapCharSet($dn);
+}
+
+=pod
+
 ---++ getValues($entry, $key) -> @values
 
 returns a decoded an array of strings from an Net::LDAP::Entry object
@@ -2734,7 +2750,6 @@ sub loadSession {
   if (defined $authUser) {
 
     my $origAuthUser = $authUser;
-    $authUser = $this->fromLdapCharSet($authUser);
     $authUser =~ s/^\s+|\s+$//g;
 
     $authUser = lc($authUser) unless $this->{caseSensitiveLogin};

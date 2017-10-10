@@ -18,7 +18,7 @@
 
 use strict;
 use warnings;
-use open qw(:std :utf8);
+#use open qw(:std :utf8);
 
 use Net::LDAP qw(LDAP_REFERRAL);
 use Authen::SASL ();
@@ -34,7 +34,7 @@ our $saslMechanism = 'GSSAPI';
 our $sizeLimit = 10;
 our $deref = "always";
 
-require "ldaptest.conf";
+do "./ldaptest.conf";
 
 die "no server specified. please configure ldaptest.conf" unless $server;
 

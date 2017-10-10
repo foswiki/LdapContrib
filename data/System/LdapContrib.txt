@@ -499,7 +499,7 @@ This work is partly sponsored by
 ---++ Change History
 
 %TABLE{columnwidths="7em" tablewidth="100%"}%
-|  09 Sep 2017: | fixed encoding errors of uncicode DN paths |
+|  10 Oct 2017: | fixed encoding errors of uncicode DN paths |
 |  30 Aug 2017: | fixed checking local groups; fixed recoding values coming from the LDAP directory |
 |  16 Jan 2017: | fixed logging in via email using an ldap-apache login manager |
 |  11 Jan 2017: | added config parameter to switch off mapping of login names to cUIDs |
