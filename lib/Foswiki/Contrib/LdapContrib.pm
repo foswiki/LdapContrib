@@ -252,7 +252,7 @@ sub new {
     require Authen::SASL;
   }
 
-  # protect against actidental misconfiguration, that might lead
+  # protect against acctidental misconfiguration, that might lead
   # to an infinite loop during authorization etc.
   if ($this->{secondaryPasswordManager} eq 'Foswiki::Users::LdapPasswdUser') {
     writeWarning("hey, you want infinite loops? naw.");
