@@ -30,8 +30,8 @@ use Encode ();
 use Foswiki::Func ();
 use Foswiki::Plugins ();
 
-our $VERSION = '7.80';
-our $RELEASE = '10 Oct 2017';
+our $VERSION = '7.90';
+our $RELEASE = '24 Nov 2017';
 our $SHORTDESCRIPTION = 'LDAP services for Foswiki';
 our $NO_PREFS_IN_TOPIC = 1;
 our %sharedLdapContrib;
@@ -155,6 +155,7 @@ sub new {
     host => $Foswiki::cfg{Ldap}{Host} || 'localhost',
     base => $Foswiki::cfg{Ldap}{Base} || '',
     port => $Foswiki::cfg{Ldap}{Port} || 389,
+    timeout => $Foswiki::cfg{Ldap}{Timeout} || 5,
     version => $Foswiki::cfg{Ldap}{Version} || 3,
     ipv6 => $Foswiki::cfg{Ldap}{IPv6} || 0,
     ignoreReferrals => $Foswiki::cfg{Ldap}{IgnoreReferrals} || 0,
@@ -355,25 +356,17 @@ sub connect {
   if ( $host =~ /,/) {
     # This server preference list relies on the behaviour of Net::LDAP
     # ldap://, ldaps:// URIs or host:port pairs are valid
-    my @hosts = split (/,/, $host);
-    $this->{ldap} = Net::LDAP->new(
-      \@hosts,
-      port => $port,
-      version => $this->{version},
-      inet4 => ($this->{ipv6}?0:1),
-      inet6 => ($this->{ipv6}?1:0),
-      timeout => 5, # TODO: make configurable
-    );
-  } else {
-    $this->{ldap} = Net::LDAP->new(
-      $host,
-      port => $port,
-      version => $this->{version},
-      inet4 => ($this->{ipv6}?0:1),
-      inet6 => ($this->{ipv6}?1:0),
-      timeout => 5, # TODO: make configurable
-    );
-  }
+    $host = [split (/\s*,\s*/, $host)];
+  } 
+
+  $this->{ldap} = Net::LDAP->new(
+    $host,
+    port => $port,
+    version => $this->{version},
+    inet4 => ($this->{ipv6}?0:1),
+    inet6 => ($this->{ipv6}?1:0),
+    timeout => $this->{timeout},
+  );
   
   unless ($this->{ldap}) {
     $this->{error} = "failed to connect to $this->{host}";

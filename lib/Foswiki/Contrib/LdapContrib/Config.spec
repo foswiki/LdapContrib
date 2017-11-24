@@ -11,12 +11,19 @@
 # ---+++ Connection settings
 
 # **STRING**
-# IP address (or hostname) of the LDAP server
+# IP address (or hostname) of one or multiple LDAP servers. Multiple server URIs may be specified
+# comma separated. Each will be tried in order until a connection is made. Please note that the
+# system might slow down considerably if some of the servers are not reachable.
 $Foswiki::cfg{Ldap}{Host} = 'ldap.my.domain.com';
 
 # **NUMBER**
-# Port used when binding to the LDAP server
+# Port used when binding to the LDAP server. Note that this setting is overridden by any port specification
+# part of the Host URI(s).
 $Foswiki::cfg{Ldap}{Port} = 389;
+
+# **NUMBER**
+# Connection timeout talking to the LDAP server.
+$Foswiki::cfg{Ldap}{Timeout} = 5;
 
 # **BOOLEAN**
 # Switch on this flag to enable IPv6 support when connecting to the LDAP server. 

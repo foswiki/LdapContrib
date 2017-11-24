@@ -499,6 +499,8 @@ This work is partly sponsored by
 ---++ Change History
 
 %TABLE{columnwidths="7em" tablewidth="100%"}%
+|  25 Nov 2017: | added feature to specify multiple LDAP servers; \
+                  added connection timeout |
 |  10 Oct 2017: | fixed encoding errors of uncicode DN paths |
 |  30 Aug 2017: | fixed checking local groups; fixed recoding values coming from the LDAP directory |
 |  16 Jan 2017: | fixed logging in via email using an ldap-apache login manager |
