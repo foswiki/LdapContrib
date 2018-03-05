@@ -1,4 +1,4 @@
-%META:TOPICINFO{author="ProjectContributor" comment="" date="1461332087" format="1.1" version="1"}%
+%META:TOPICINFO{author="ProjectContributor" comment="" date="1520262917" format="1.1" version="1"}%
 ---+!! %TOPIC%
 %TOC%
 ---++ Introduction
@@ -64,6 +64,7 @@ a set of basic questions about your LDAP server. These are:
    1 Which attribute of a user record should be used to log in (must be unique)?
    1 Which attribute(s) of a user record do you want to use to construct a <nop>WikiName
      (used to display them online, pointing to their homepage)?
+   1 What attribute of a user record holds the email address?
    1 What's the name attribute of a group?
    1 Which attribute in a group record defines its members (e.g. member or memberUid)?
      Note, that if the member attribute of a group is a DN you need to enable
@@ -308,7 +309,6 @@ cache using the =refreshldap=force= url parameter (compared to =refreshldap=on= 
 %X% Note doing this later in the life time of your wiki might accidentally swap the mapping of LDAP records
 to <nop>WikiNames in case they clash. So be very cautious when doing that.
 
-
 ---++ Single Sign On and <nop>LdapContrib
 <div class="foswikiHelp">
 %X% Note that the =KerberosLogin= manager depends on CPAN:GSSAPI and requires Foswiki >= 2.0.0
@@ -334,7 +334,6 @@ visiting the [[%SCRIPTURLPATH{"login"}%/%WEB%/%TOPIC%][Login]] url.
 When no valid kerberos ticket is available on the client side will the authentication
 fall back to a template based login to enter credentials manually as if the =TemplateLogin= <nop>LoginManager
 has been used.
-
 
 ---++ Simple Example 
 For the sake of this documentation we assume that users accounts in your
@@ -484,7 +483,6 @@ time to reflect the specific settings required to connect your LDAP server.
 ---++ Dependencies
 %$DEPENDENCIES%
 
-
 ---++ Acknowledgement
 
 This work is partly sponsored by 
@@ -499,6 +497,7 @@ This work is partly sponsored by
 ---++ Change History
 
 %TABLE{columnwidths="7em" tablewidth="100%"}%
+|  05 Mar 2018: | replace handmade transliteration with Text::Unidecode; only force kerberos handshake when authentication is required |
 |  25 Nov 2017: | added feature to specify multiple LDAP servers; \
                   added connection timeout |
 |  10 Oct 2017: | fixed encoding errors of uncicode DN paths |
@@ -637,10 +636,11 @@ This work is partly sponsored by
 
 %META:FORM{name="PackageForm"}%
 %META:FIELD{name="Author" title="Author" value="Michael Daum"}%
-%META:FIELD{name="Copyright" title="Copyright" value="&copy; 2006-2017 Michael Daum http://michaeldaumconsulting.com"}%
-%META:FIELD{name="Home" value="https://foswiki.org/Extensions/LdapContrib"}%
-%META:FIELD{name="License" title="License" value="GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]])"}%
-%META:FIELD{name="Release" title="Release" value="%$RELEASE%"}%
+%META:FIELD{name="Version" title="Version" value="%25$VERSION%25"}%
+%META:FIELD{name="Release" title="Release" value="%25$RELEASE%25"}%
+%META:FIELD{name="Description" title="Description" value=""}%
 %META:FIELD{name="Repository" title="Repository" value="https://github.com/foswiki/LdapContrib"}%
-%META:FIELD{name="Support" value="https://foswiki.org/Support/LdapContrib"}%
-%META:FIELD{name="Version" title="Version" value="%$VERSION%"}%
+%META:FIELD{name="Copyright" title="Copyright" value="&copy; 2006-2018 Michael Daum http://michaeldaumconsulting.com"}%
+%META:FIELD{name="License" title="License" value="GPL ([[http://www.gnu.org/copyleft/gpl.html][GNU General Public License]])"}%
+%META:FIELD{name="Home" title="Home" value="https://foswiki.org/Extensions/LdapContrib"}%
+%META:FIELD{name="Support" title="Support" value="https://foswiki.org/Support/LdapContrib"}%

@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # Test program to check your ldap connectivity using perl
 #
-# Copyright (C) 2006-2017 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2006-2018 Michael Daum http://michaeldaumconsulting.com
 # Portions Copyright (C) 2006 Spanlink Communications
 #
 # This program is free software; you can redistribute it and/or

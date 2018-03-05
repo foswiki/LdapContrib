@@ -6,3 +6,4 @@ GSSAPI,>=0.28,cpan,Optional
 IO::Socket::INET6,>=1.0,cpan,Optional
 IO::Socket::SSL,>=1.0,cpan,Optional
 Net::LDAP,>=0.33,cpan,Required
+Text::Unidecode,>=1.27,cpan,Required

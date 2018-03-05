@@ -1,6 +1,6 @@
 # Module of Foswiki - The Free and Open Source Wiki, http://foswiki.org/
 #
-# Copyright (C) 2015-2017 Michael Daum http://michaeldaumconsulting.com
+# Copyright (C) 2015-2018 Michael Daum http://michaeldaumconsulting.com
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -82,7 +82,7 @@ returns user as already found in session
 sub getSessionUser {
   my $this = shift;
 
-  writeDebug("called getSessionUser");
+  #writeDebug("called getSessionUser");
   my $request = $this->{session}{request};
   $this->{_cgisession} = $this->_loadCreateCGISession($request)
     unless $this->{_cgisession};
@@ -109,12 +109,13 @@ happening by accident.
 =cut
 
 sub login {
-  my ($this, $query, $session) = @_;
+  my ($this, $request, $session) = @_;
 
   writeDebug("called login() - this=$this");
 
+  $session ||= $this->{session};
+  $request ||= $session->{request};
   my $response = $session->{response};
-  my $request = $session->{request};
 
   my $found = $this->getSessionUser?1:0;
 
@@ -140,13 +141,40 @@ sub login {
     $session->redirect($url);
   } else {
     writeDebug("delegating to template login");
-    $this->SUPER::login($query, $session);
+    $this->SUPER::login($request, $session);
   }
 }
 
 =begin TML
 
----++ ObjectMethod getUser($request, $session)
+---++ ObjectMethod forceAuthentication() -> boolean
+
+Triggered by an access control violation, this method tests
+to see if the current session is authenticated or not. If not,
+it does whatever is needed so that the user can log in, and returns 1.
+
+If the user has an existing authenticated session, the function simply drops
+though and returns 0.
+
+=cut
+
+sub forceAuthentication {
+  my $this = shift;
+
+  writeDebug("called forceAuthentication");
+  my $session = $this->{session};
+  my $authUser = $this->getUser($this, 1);
+  unless ($session->inContext('authenticated')) {
+    $this->login();
+    return 1;
+  }
+
+  return 0;
+}
+
+=begin TML
+
+---++ ObjectMethod getUser()
 
 performs the actual kerberos communication to extract the remote user name from the ticket
 found in the HTTP header. 
@@ -154,9 +182,7 @@ found in the HTTP header.
 =cut
 
 sub getUser {
-  my $this = shift;
-
-  writeDebug("called getUser() - this=$this");
+  my ($this, $dummy, $forceAuthentication) = @_;
 
   unless ($Foswiki::cfg{Ldap}{KerberosKeyTab}) {
     writeDebug("keytab not defined");
@@ -167,7 +193,6 @@ sub getUser {
     writeDebug("can't read keytab $Foswiki::cfg{Ldap}{KerberosKeyTab}");
     return $this->SUPER::getUser();
   }
-
 
   my $request = $this->{session}{request};
   my $response = $this->{session}{response};
@@ -195,11 +220,13 @@ sub getUser {
 
   # initial
   unless (defined $inToken) {
-    writeDebug("initial redirect using WWW_Authenticate for ".$request->url(-full => 1, -path => 1, -query => 1));
-    $response->header(
-      -status => 401, 
-      -WWW_Authenticate => 'Negotiate'
-    );
+    if ($forceAuthentication) {
+      writeDebug("initial redirect using WWW_Authenticate for ".$request->url(-full => 1, -path => 1, -query => 1));
+      $response->header(
+        -status => 401, 
+        -WWW_Authenticate => 'Negotiate'
+      );
+    }
     return;
   }
 
